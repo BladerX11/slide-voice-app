@@ -7,3 +7,10 @@ requires-python = ">=3.10"
 dependencies = [
     "pyside6>=6.10.1",
 ]
+
+[project.scripts]
+slide-voice-app = "slide_voice_app.main:main"
+
+[build-system]
+requires = ["uv_build>=0.9.25,<0.10.0"]
+build-backend = "uv_build"
