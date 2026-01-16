@@ -1,16 +1,15 @@
 import sys
-from pathlib import Path
 
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtCore import QUrl
 from PySide6.QtQml import QQmlApplicationEngine
+
+import slide_voice_app.rc_resources  # noqa: F401 # pyright: ignore [reportUnusedImport]
 
 
 def main():
     app = QGuiApplication()
     engine = QQmlApplicationEngine()
-    qml_file = Path(__file__).parent / "ui" / "Main.qml"
-    engine.load(QUrl.fromLocalFile(qml_file))
+    engine.load(":/ui/Main.qml")
 
     if not engine.rootObjects():
         sys.exit(-1)

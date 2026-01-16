@@ -1,0 +1,5 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+    <file alias="ui/Main.qml">src/slide_voice_app/ui/Main.qml</file>
+</qresource>
+</RCC>
