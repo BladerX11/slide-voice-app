@@ -5,11 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "nuitka>=2.8.9",
+    "patchelf>=0.17.2.4 ; sys_platform == 'linux'",
     "pyside6>=6.10.1",
 ]
-
-[project.scripts]
-slide-voice-app = "slide_voice_app.main:main"
 
 [build-system]
 requires = ["uv_build>=0.9.25,<0.10.0"]
