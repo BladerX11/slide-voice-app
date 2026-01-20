@@ -9,7 +9,7 @@ Follow these instructions strictly to maintain code quality, consistency, and st
 A desktop application to load PowerPoint (`.pptx`) files, extract and edit slide notes, generate Text-to-Speech (TTS) audio using various providers, and embed the audio back into the presentation.
 
 **Stack:**
-- **Language:** Python 3.10+
+- **Language:** Python 3.11+
 - **UI Framework:** PySide6 (Qt Quick/QML)
 - **Package Manager:** `uv`
 - **Build Tool:** Nuitka (for distribution)
@@ -21,6 +21,7 @@ slide-voice-app/
 ├── src/slide_voice_app/     # Main application source code
 │   ├── __main__.py          # Application entry point
 │   ├── ui/                  # QML files for UI
+│   ├── qml_modules/         # QML module outputs (qmldir, qml, qmltypes)
 │   └── rc_resources.py      # Generated resource file (do not edit manually)
 ├── scripts/                 # Build and development scripts
 │   ├── run.py               # Run application in development mode
@@ -47,10 +48,10 @@ uv run scripts/build.py
 ```
 This creates a standalone executable in `dist/`.
 
-### Compiling Qt Resources Only
-Resources are auto-compiled by run/build scripts, but to compile manually:
+### Generating QML Resources and Module Artifacts
+Resources and module artifacts are auto-compiled by run/build scripts, but to compile manually:
 ```bash
-uv run pyside6-rcc resources.qrc -o src/slide_voice_app/rc_resources.py
+uv run scripts/utils.py
 ```
 
 ### Running Tests
@@ -67,7 +68,11 @@ uv run pytest -x                        # Stop on first failure
 uv run ruff check .                     # Run linter
 uv run ruff check . --fix               # Auto-fix lint issues
 uv run ruff format .                    # Format code
-uv run pyright                          # Type checking
+```
+
+### Type Checking
+```bash
+uv run ty check .
 ```
 
 ## Code Style Guidelines
@@ -99,8 +104,7 @@ from slide_voice_app.utils import helper_function
 
 ### Type Annotations
 
-- Use type hints for all function parameters and return values
-- Use `from __future__ import annotations` for forward references
+- Use type hints for all function parameters and return values, unless returning `None`
 - Use `typing` module types when needed (`Optional`, `Union`, `List`, etc.)
 
 ```python
@@ -167,13 +171,9 @@ def load_presentation(path: Path) -> Presentation:
 
 3. **QML File Structure:**
    - Place QML files in `src/slide_voice_app/ui/`
-   - Use descriptive component names (PascalCase)
-
-4. **Importing Resources:**
-   - Import the resource module to register resources:
-   ```python
-   import slide_voice_app.rc_resources  # noqa: F401
-   ```
+   - Place custom modules under `src/slide_voice_app/qml_modules/<ModuleName>/`
+   - Add custom modules to `scripts/utils.py` for type generation
+   - Use descriptive component and module names (PascalCase)
 
 ## Documentation
 
