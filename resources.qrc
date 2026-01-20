@@ -1,5 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
     <file alias="ui/Main.qml">src/slide_voice_app/ui/Main.qml</file>
+    <file alias="ui/SettingsWindow.qml">src/slide_voice_app/ui/SettingsWindow.qml</file>
+    <file alias="qml_modules/SlideVoiceApp/qmldir">src/slide_voice_app/qml_modules/SlideVoiceApp/qmldir</file>
 </qresource>
 </RCC>

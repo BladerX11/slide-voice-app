@@ -1,11 +1,17 @@
 import subprocess
 import sys
 
-from utils import BASE_DIR, PKG_DIR, compile_resources  # pyright: ignore [reportImplicitRelativeImport]
+from utils import (
+    BASE_DIR,
+    PKG_DIR,
+    compile_resources,
+    generate_qml_module_artifacts,
+)
 
 
 def run_build():
     """Builds the application using Nuitka."""
+    generate_qml_module_artifacts()
     compile_resources()
 
     try:
