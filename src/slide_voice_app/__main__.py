@@ -1,13 +1,19 @@
 import sys
 
+from PySide6.QtCore import QCoreApplication, QSettings
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-import slide_voice_app.rc_resources  # noqa: F401 # pyright: ignore [reportUnusedImport]
+import slide_voice_app.qml_modules.SlideVoiceApp
+import slide_voice_app.rc_resources  # noqa: F401
 
 
 def main():
-    app = QGuiApplication()
+    QCoreApplication.setOrganizationName("slide-voice-app")
+    QCoreApplication.setApplicationName("slide-voice-app")
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+
+    app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
     engine.load(":/ui/Main.qml")
 
