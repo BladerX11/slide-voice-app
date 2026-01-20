@@ -14,24 +14,16 @@ ApplicationWindow {
         id: slideModel
 
         ListElement {
-            slideName: "Slide 1"
             notes: "These are the notes for Slide 1.\n\nYou can edit them here."
-            thumbnailColor: "#3498db"
         }
         ListElement {
-            slideName: "Slide 2"
             notes: "Notes for Slide 2 go here.\n\nThis slide covers the main topic."
-            thumbnailColor: "#e74c3c"
         }
         ListElement {
-            slideName: "Slide 3"
             notes: "Slide 3 contains supporting details.\n\nRemember to mention the key points."
-            thumbnailColor: "#2ecc71"
         }
         ListElement {
-            slideName: "Slide 4"
             notes: "Final slide with conclusions.\n\nThank the audience!"
-            thumbnailColor: "#9b59b6"
         }
     }
 
@@ -98,29 +90,19 @@ ApplicationWindow {
                     id: slideItem
                     spacing: 4
 
-                    // Thumbnail placeholder
+                    // Slide selector
                     Rectangle {
                         width: 140
-                        height: 90
-                        color: model.thumbnailColor
+                        height: 40
                         radius: 4
                         border.width: slideItemRoot.ListView.isCurrentItem ? 3 : 1
                         border.color: slideItemRoot.ListView.isCurrentItem ? palette.highlight : palette.mid
 
                         Text {
                             anchors.centerIn: parent
-                            text: "Slide " + (model.index + 1) + " Image"
+                            text: `Slide ${model.index + 1}`
                             font.pixelSize: 12
                         }
-                    }
-
-                    // Slide label
-                    Text {
-                        id: slideLabel
-                        text: model.slideName
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        font.pixelSize: 14
                     }
                 }
 
