@@ -1,6 +1,9 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
+
+import SlideVoiceApp
 
 ApplicationWindow {
     id: window
@@ -8,6 +11,36 @@ ApplicationWindow {
     height: 600
     visible: true
     title: "Slide Voice App"
+
+    menuBar: MenuBar {
+        Menu {
+            title: "Menu"
+
+            Action {
+                text: "Settings"
+                onTriggered: settingsLoader.active = true
+            }
+        }
+    }
+
+    // Settings window loader
+    Loader {
+        id: settingsLoader
+        active: false
+        source: "SettingsWindow.qml"
+
+        onLoaded: {
+            item.visible = true;
+        }
+    }
+
+    Connections {
+        target: settingsLoader.item
+
+        function onClosing() {
+            settingsLoader.active = false;
+        }
+    }
 
     // Dummy data model for slides
     ListModel {
@@ -27,43 +60,42 @@ ApplicationWindow {
         }
     }
 
-    // Dummy data for providers
     ListModel {
         id: providerModel
-        ListElement {
-            name: "OpenAI"
+    }
+
+    ListModel {
+        id: voiceModel
+    }
+
+    Connections {
+        target: TTSManager
+
+        function onVoicesReady(voices) {
+            voiceModel.clear();
+            const st = voices.forEach(voice => voiceModel.append(voice));
+            voiceComboBox.currentIndex = voiceModel.count > 0 ? 0 : -1;
         }
-        ListElement {
-            name: "ElevenLabs"
-        }
-        ListElement {
-            name: "Azure"
-        }
-        ListElement {
-            name: "Google Cloud"
+
+        function onErrorOccurred(message) {
+            errorDialog.text = message;
+            errorDialog.open();
         }
     }
 
-    // Dummy data for voices
-    ListModel {
-        id: voiceModel
-        ListElement {
-            name: "Alloy"
-        }
-        ListElement {
-            name: "Echo"
-        }
-        ListElement {
-            name: "Fable"
-        }
-        ListElement {
-            name: "Nova"
-        }
-        ListElement {
-            name: "Onyx"
-        }
-        ListElement {
-            name: "Shimmer"
+    MessageDialog {
+        id: errorDialog
+        title: "Error"
+        buttons: MessageDialog.Ok
+    }
+
+    Component.onCompleted: {
+        let providers = TTSManager.getAvailableProviders();
+        providers.forEach(provider => providerModel.append(provider));
+
+        if (providerModel.count > 0) {
+            providerComboBox.currentIndex = 0;
+            TTSManager.setProvider(providerComboBox.currentValue);
         }
     }
 
@@ -80,36 +112,24 @@ ApplicationWindow {
             model: slideModel
             spacing: 10
 
-            delegate: Item {
-                id: slideItemRoot
-                width: slideItem.width
-                height: slideItem.height
+            delegate: Rectangle {
+                id: slideItem
+                width: 140
+                height: 40
                 anchors.horizontalCenter: parent.horizontalCenter
+                radius: 4
+                border.width: ListView.isCurrentItem ? 3 : 0
+                border.color: palette.highlight
 
-                Column {
-                    id: slideItem
-                    spacing: 4
-
-                    // Slide selector
-                    Rectangle {
-                        width: 140
-                        height: 40
-                        radius: 4
-                        border.width: slideItemRoot.ListView.isCurrentItem ? 3 : 1
-                        border.color: slideItemRoot.ListView.isCurrentItem ? palette.highlight : palette.mid
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: `Slide ${model.index + 1}`
-                            font.pixelSize: 12
-                        }
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: `Slide ${model.index + 1}`
                 }
 
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
-                        slideItemRoot.ListView.view.currentIndex = model.index;
+                        slideItem.ListView.view.currentIndex = model.index;
                     }
                 }
             }
@@ -153,13 +173,43 @@ ApplicationWindow {
                 ComboBox {
                     id: providerComboBox
                     model: providerModel
-                    displayText: currentIndex >= 0 ? providerModel.get(currentIndex).name : "Provider"
+                    textRole: "name"
+                    valueRole: "id"
+                    displayText: currentIndex >= 0 ? currentText : "Provider"
+                    enabled: !TTSManager.isGenerating && !TTSManager.isFetchingVoices
+
+                    onCurrentIndexChanged: {
+                        if (currentIndex >= 0) {
+                            // curretValue is not set at startup, so use model lookup
+                            TTSManager.setProvider(providerModel.get(currentIndex).id);
+                        }
+                    }
                 }
 
                 ComboBox {
                     id: voiceComboBox
+                    Layout.preferredWidth: 300
                     model: voiceModel
-                    displayText: currentIndex >= 0 ? voiceModel.get(currentIndex).name : "Voice"
+                    valueRole: "id"
+                    textRole: "name"
+                    enabled: !TTSManager.isGenerating && !TTSManager.isFetchingVoices
+
+                    displayText: {
+                        if (TTSManager.isFetchingVoices) {
+                            return "Loading...";
+                        }
+
+                        if (currentIndex >= 0) {
+                            return currentText;
+                        }
+
+                        return "Voice";
+                    }
+
+                    delegate: ItemDelegate {
+                        width: voiceComboBox.width
+                        text: `${model.name} (${model.languageCode}, ${model.gender})`
+                    }
                 }
 
                 Item {
@@ -167,25 +217,52 @@ ApplicationWindow {
                 }
 
                 Button {
-                    text: "Preview"
-                    onClicked: {
-                        console.log("Preview audio for slide", slideList.currentIndex + 1);
-                    }
-                }
+                    text: TTSManager.isPlaying ? "Stop" : "Preview"
+                    enabled: !TTSManager.isGenerating && !TTSManager.isFetchingVoices && voiceComboBox.currentIndex >= 0 && notesEditor.text.trim().length > 0
 
-                Button {
-                    text: "Save Audio"
                     onClicked: {
-                        console.log("Save audio to slide", slideList.currentIndex + 1);
+                        if (TTSManager.isPlaying) {
+                            TTSManager.stopAudio();
+                        } else {
+                            TTSManager.generateAndPlay(notesEditor.text, voiceComboBox.currentValue);
+                        }
                     }
                 }
 
                 Button {
                     text: "Save PPTX"
+                    enabled: !TTSManager.isGenerating
                     onClicked: {
                         console.log("Save PPTX file");
                     }
                 }
+            }
+        }
+    }
+
+    footer: RowLayout {
+        BusyIndicator {
+            running: TTSManager.isGenerating || TTSManager.isFetchingVoices
+            Layout.preferredHeight: 20
+            Layout.preferredWidth: 20
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: {
+                if (TTSManager.isGenerating) {
+                    return "Generating audio...";
+                }
+
+                if (TTSManager.isFetchingVoices) {
+                    return "Fetching voices...";
+                }
+
+                if (TTSManager.isPlaying) {
+                    return "Playing audio...";
+                }
+
+                return "";
             }
         }
     }
