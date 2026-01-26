@@ -25,24 +25,11 @@ class VoiceRule(SSMLRule):
 
     def __init__(self):
         self._pattern = re.compile(
-            r"^\[(?P<voice>[^\]]+)\](?P<content>.*)(?P<ending>\r?\n)?$"
+            r"^\[(?P<voice>[^\]]+)\](?P<content>.*)$", re.MULTILINE
         )
 
     def apply(self, text: str) -> str:
-        lines = text.splitlines(keepends=True)
-        updated_lines: list[str] = []
-
-        for line in lines:
-            match = self._pattern.match(line)
-            if match:
-                groups = match.groupdict()
-                updated_lines.append(
-                    f'<voice name="{groups["voice"]}">{groups["content"]}</voice>{groups["ending"] or ""}'
-                )
-            else:
-                updated_lines.append(line)
-
-        return "".join(updated_lines)
+        return self._pattern.sub(r'<voice name="\g<voice>">\g<content></voice>', text)
 
 
 class BreakRule(SSMLRule):
