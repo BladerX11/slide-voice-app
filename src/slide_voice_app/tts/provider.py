@@ -89,7 +89,9 @@ class TTSProvider(ABC):
         pass
 
     @abstractmethod
-    def generate_audio(self, text: str, voice_id: str, output_path: Path) -> Path:
+    def generate_audio(
+        self, text: str, voice_id: str, language_code: str, output_path: Path
+    ) -> Path:
         """Generate audio from text and save to a file.
 
         This method may make a network request hence blocks until complete.
@@ -98,6 +100,7 @@ class TTSProvider(ABC):
         Args:
             text: The text to convert to speech.
             voice_id: The ID of the voice to use.
+            language_code: The language code for the voice.
             output_path: The path where the audio file should be saved.
 
         Returns:
