@@ -49,7 +49,7 @@ class BreakRule(SSMLRule):
     """Convert dot runs surrounded by spaces to <break> tags."""
 
     def __init__(self):
-        self._pattern = re.compile(r"(?<= )\.+(?= )")
+        self._pattern = re.compile(r"(?<!\S)\.+(?!\S)")
 
     def apply(self, text: str) -> str:
         return self._pattern.sub(
@@ -61,7 +61,7 @@ class EmphasisRule(SSMLRule):
     """Convert _text_ to <emphasis level="strong">text</emphasis>."""
 
     def __init__(self):
-        self._pattern = re.compile(r"_([^_\n]+)_")
+        self._pattern = re.compile(r"(?<!\S)_(.+?)_(?!\S)")
 
     def apply(self, text: str) -> str:
         return self._pattern.sub(
