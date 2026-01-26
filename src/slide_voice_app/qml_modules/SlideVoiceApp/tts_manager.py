@@ -276,7 +276,7 @@ class TTSManager(QObject):
         self._is_generating = True
         self.isGeneratingChanged.emit()
         temp_dir = self._get_temp_dir()
-        output_path = temp_dir / f"tts_output_{hash(text)}.mp3"
+        output_path = temp_dir / "output.mp3"
         provider = self._providers[self._current_provider_id]
         worker = AudioGenerateWorker(provider, text, voice_id, output_path)
         worker.signals.finished.connect(self._on_audio_generated)
@@ -304,12 +304,11 @@ class TTSManager(QObject):
             file_path: Path to the audio file to play.
         """
         if not file_path:
-            if self._last_generated_file:
-                file_path = self._last_generated_file
-            else:
-                self.errorOccurred.emit("No audio file to play")
-                return
+            self.errorOccurred.emit("No audio file to play")
+            return
 
+        # Clear buffer
+        self._media_player.setSource("")
         self._media_player.setSource(file_path)
         self._media_player.play()
 
