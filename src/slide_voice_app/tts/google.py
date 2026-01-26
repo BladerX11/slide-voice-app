@@ -11,6 +11,7 @@ from slide_voice_app.tts.provider import (
     TTSProvider,
     Voice,
 )
+from slide_voice_app.tts.ssml import SSMLProcessor
 
 
 class GoogleTTSProvider(TTSProvider):
@@ -127,8 +128,8 @@ class GoogleTTSProvider(TTSProvider):
         Raises:
             Exception: If the API call fails.
         """
-        # Extract language code from voice_id (e.g., "en-US-Wavenet-A" -> "en-US")
-        synthesis_input = texttospeech.SynthesisInput(text=text)
+        ssml_text = SSMLProcessor().to_ssml(text)
+        synthesis_input = texttospeech.SynthesisInput(ssml=ssml_text)
         voice_params = texttospeech.VoiceSelectionParams(
             language_code=language_code,
             name=voice_id,
