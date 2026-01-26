@@ -9,6 +9,7 @@ dependencies = [
     "nuitka>=2.8.9",
     "patchelf>=0.17.2.4 ; sys_platform == 'linux'",
     "pyside6>=6.10.1",
+    "pytest>=9.0.2",
 ]
 
 [build-system]
