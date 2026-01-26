@@ -111,7 +111,9 @@ class GoogleTTSProvider(TTSProvider):
 
         return voices
 
-    def generate_audio(self, text: str, voice_id: str, output_path: Path) -> Path:
+    def generate_audio(
+        self, text: str, voice_id: str, language_code: str, output_path: Path
+    ) -> Path:
         """Generate audio from text using Google Cloud TTS.
 
         Args:
@@ -126,8 +128,6 @@ class GoogleTTSProvider(TTSProvider):
             Exception: If the API call fails.
         """
         # Extract language code from voice_id (e.g., "en-US-Wavenet-A" -> "en-US")
-        parts = voice_id.split("-")
-        language_code = "-".join(parts[:2]) if len(parts) >= 2 else "en-US"
         synthesis_input = texttospeech.SynthesisInput(text=text)
         voice_params = texttospeech.VoiceSelectionParams(
             language_code=language_code,

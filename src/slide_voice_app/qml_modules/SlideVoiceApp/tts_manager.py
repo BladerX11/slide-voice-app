@@ -251,12 +251,13 @@ class TTSManager(QObject):
         self._thread_pool.start(worker)
 
     @Slot(str, str)
-    def generateAudio(self, text: str, voice_id: str):
+    def generateAudio(self, text: str, voice_id: str, language_code: str):
         """Generate audio from text.
 
         Args:
             text: The text to convert to speech.
             voice_id: The ID of the voice to use.
+            language_code: The language code for the voice.
         """
         if not self._current_provider_id:
             self.errorOccurred.emit("No provider configured")
@@ -278,7 +279,9 @@ class TTSManager(QObject):
         temp_dir = self._get_temp_dir()
         output_path = temp_dir / "output.mp3"
         provider = self._providers[self._current_provider_id]
-        worker = AudioGenerateWorker(provider, text, voice_id, output_path)
+        worker = AudioGenerateWorker(
+            provider, text, voice_id, language_code, output_path
+        )
         worker.signals.finished.connect(self._on_audio_generated)
         worker.signals.error.connect(self._on_audio_error)
         self._thread_pool.start(worker)
@@ -317,13 +320,14 @@ class TTSManager(QObject):
         """Stop audio playback."""
         self._media_player.stop()
 
-    @Slot(str, str)
-    def generateAndPlay(self, text: str, voice_id: str):
+    @Slot(str, str, str)
+    def generateAndPlay(self, text: str, voice_id: str, language_code: str):
         """Generate audio and play it when ready.
 
         Args:
             text: The text to convert to speech.
             voice_id: The ID of the voice to use.
+            language_code: The language code for the voice.
         """
 
         def play_on_finish(path: str):
@@ -331,7 +335,7 @@ class TTSManager(QObject):
             self.playAudio(path)
 
         self.generationFinished.connect(play_on_finish)
-        self.generateAudio(text, voice_id)
+        self.generateAudio(text, voice_id, language_code)
 
     def _on_media_error(self, error: QMediaPlayer.Error, error_string: str):
         """Handle media player errors."""

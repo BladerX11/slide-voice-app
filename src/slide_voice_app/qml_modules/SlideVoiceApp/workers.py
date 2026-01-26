@@ -65,19 +65,25 @@ class AudioGenerateWorker(BaseWorker):
     """Worker to generate audio in a background thread."""
 
     def __init__(
-        self, provider: TTSProvider, text: str, voice_id: str, output_path: Path
+        self,
+        provider: TTSProvider,
+        text: str,
+        voice_id: str,
+        language_code: str,
+        output_path: Path,
     ):
         signals = AudioGenerateWorkerSignals()
         super().__init__(signals)
         self.provider = provider
         self.text = text
         self.voice_id = voice_id
+        self.language_code = language_code
         self.output_path = output_path
         self.signals: AudioGenerateWorkerSignals = signals
 
     def work(self):
         """Generate audio from the provider."""
         result_path = self.provider.generate_audio(
-            self.text, self.voice_id, self.output_path
+            self.text, self.voice_id, self.language_code, self.output_path
         )
         self.signals.finished.emit(str(result_path))

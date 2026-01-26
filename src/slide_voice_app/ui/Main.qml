@@ -224,7 +224,8 @@ ApplicationWindow {
                         if (TTSManager.isPlaying) {
                             TTSManager.stopAudio();
                         } else {
-                            TTSManager.generateAndPlay(notesEditor.text, voiceComboBox.currentValue);
+                            let languageCode = voiceModel.get(voiceComboBox.currentIndex).languageCode;
+                            TTSManager.generateAndPlay(notesEditor.text, voiceComboBox.currentValue, languageCode);
                         }
                     }
                 }
