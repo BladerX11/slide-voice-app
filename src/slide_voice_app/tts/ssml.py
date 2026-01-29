@@ -61,7 +61,7 @@ class SSMLProcessor:
     """Apply a sequence of SSML transformation rules."""
 
     def __init__(self):
-        self._rules: list[SSMLRule] = [VoiceRule(), BreakRule(), EmphasisRule()]
+        self._rules: list[SSMLRule] = [BreakRule(), EmphasisRule(), VoiceRule()]
 
     def to_ssml(self, text: str) -> str:
         """Convert custom syntax to SSML wrapped in <speak> tags.
