@@ -38,8 +38,8 @@ def processor():
         ),
         # Combined
         (
-            "[en-US-Wavenet-D]Hi _there_ .. now",
-            '<speak><voice name="en-US-Wavenet-D">Hi <emphasis level="strong">there</emphasis> <break time="2s"/> now</voice></speak>',
+            "[en-US-Wavenet-D] _Hi_ there ..",
+            '<speak><voice name="en-US-Wavenet-D"> <emphasis level="strong">Hi</emphasis> there <break time="2s"/></voice></speak>',
         ),
     ],
 )
