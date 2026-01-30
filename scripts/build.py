@@ -23,7 +23,7 @@ def run_build():
                 "-m",
                 "nuitka",
                 "--enable-plugin=pyside6",
-                "--include-qt-plugins=qml",
+                "--include-qt-plugins=qml,multimedia",
                 "--output-filename=slide-voice-app",
                 "--standalone",
                 f"--output-dir={BASE_DIR / 'dist'}",
