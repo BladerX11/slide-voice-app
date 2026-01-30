@@ -462,18 +462,26 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "google-cloud-texttospeech" },
+    { name = "pyside6" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "nuitka" },
     { name = "patchelf", marker = "sys_platform == 'linux'" },
-    { name = "pyside6" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "google-cloud-texttospeech", specifier = ">=2.34.0" },
+    { name = "pyside6", specifier = ">=6.10.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
     { name = "nuitka", specifier = ">=2.8.9" },
     { name = "patchelf", marker = "sys_platform == 'linux'", specifier = ">=0.17.2.4" },
-    { name = "pyside6", specifier = ">=6.10.1" },
     { name = "pytest", specifier = ">=9.0.2" },
 ]
 
