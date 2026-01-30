@@ -128,7 +128,7 @@ class GoogleTTSProvider(TTSProvider):
         Raises:
             Exception: If the API call fails.
         """
-        ssml_text = SSMLProcessor().to_ssml(text)
+        ssml_text = SSMLProcessor.to_ssml(text)
         synthesis_input = texttospeech.SynthesisInput(ssml=ssml_text)
         voice_params = texttospeech.VoiceSelectionParams(
             language_code=language_code,
