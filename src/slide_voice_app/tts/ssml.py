@@ -2,6 +2,7 @@
 
 import re
 from abc import ABC, abstractmethod
+from xml.sax.saxutils import escape
 
 
 class SSMLRule(ABC):
@@ -73,6 +74,9 @@ class SSMLProcessor:
         Returns:
             The SSML-formatted text.
         """
+        escaped = escape(text, {'"': "&quot;"})
+
         for rule in self._rules:
-            text = rule.apply(text)
-        return f"<speak>{text}</speak>"
+            escaped = rule.apply(escaped)
+
+        return f"<speak>{escaped}</speak>"
