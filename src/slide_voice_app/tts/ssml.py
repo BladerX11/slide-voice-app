@@ -61,6 +61,7 @@ class SSMLProcessor:
     """Apply a sequence of SSML transformation rules."""
 
     def __init__(self):
+        # Apply voice rule last as it removes new line character after content
         self._rules: list[SSMLRule] = [BreakRule(), EmphasisRule(), VoiceRule()]
 
     def to_ssml(self, text: str) -> str:
