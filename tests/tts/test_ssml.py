@@ -1,4 +1,5 @@
 import pytest
+
 from slide_voice_app.tts.ssml import SSMLProcessor
 
 
@@ -40,6 +41,16 @@ def processor():
         (
             "[en-US-Wavenet-D] _Hi_ there ..",
             '<speak><voice name="en-US-Wavenet-D"> <emphasis level="strong">Hi</emphasis> there <break time="2s"/></voice></speak>',
+        ),
+        # Escape XML special characters in content
+        (
+            "R&D Department <sales@example.com>",
+            "<speak>R&amp;D Department &lt;sales@example.com&gt;</speak>",
+        ),
+        # Escape quotes in voice name
+        (
+            '[en-US-Wavenet-D" malicious]Hello there.',
+            '<speak><voice name="en-US-Wavenet-D&quot; malicious">Hello there.</voice></speak>',
         ),
     ],
 )
