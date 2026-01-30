@@ -3,12 +3,6 @@ import pytest
 from slide_voice_app.tts.ssml import SSMLProcessor
 
 
-@pytest.fixture
-def processor():
-    """Provides a fresh instance of SSMLProcessor for every test."""
-    return SSMLProcessor()
-
-
 @pytest.mark.parametrize(
     "input_text, expected",
     [
@@ -54,5 +48,5 @@ def processor():
         ),
     ],
 )
-def test_combined_rules(processor, input_text, expected):
-    assert processor.to_ssml(input_text) == expected
+def test_combined_rules(input_text, expected):
+    assert SSMLProcessor.to_ssml(input_text) == expected

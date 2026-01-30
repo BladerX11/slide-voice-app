@@ -61,11 +61,11 @@ class EmphasisRule(SSMLRule):
 class SSMLProcessor:
     """Apply a sequence of SSML transformation rules."""
 
-    def __init__(self):
-        # Apply voice rule last as it removes new line character after content
-        self._rules: list[SSMLRule] = [BreakRule(), EmphasisRule(), VoiceRule()]
+    # Apply voice rule last as it removes new line character after content
+    _rules: list[SSMLRule] = [BreakRule(), EmphasisRule(), VoiceRule()]
 
-    def to_ssml(self, text: str) -> str:
+    @classmethod
+    def to_ssml(cls, text: str) -> str:
         """Convert custom syntax to SSML wrapped in <speak> tags.
 
         Args:
@@ -76,7 +76,7 @@ class SSMLProcessor:
         """
         escaped = escape(text, {'"': "&quot;"})
 
-        for rule in self._rules:
+        for rule in cls._rules:
             escaped = rule.apply(escaped)
 
         return f"<speak>{escaped}</speak>"
