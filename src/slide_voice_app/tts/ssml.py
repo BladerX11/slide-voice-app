@@ -2,14 +2,32 @@
 
 import re
 from abc import ABC, abstractmethod
+from re import Match
 from xml.sax.saxutils import escape
+
+from typing_extensions import override
 
 
 class SSMLRule(ABC):
     """Base class for SSML transformation rules."""
 
+    _pattern: re.Pattern[str]
+
+    @classmethod
     @abstractmethod
-    def apply(self, text: str) -> str:
+    def _replacement(cls, match: Match[str]) -> str:
+        """Generate replacement string for a regex match.
+
+        Args:
+            match: The regex match object.
+
+        Returns:
+            The replacement string.
+        """
+        pass
+
+    @classmethod
+    def apply(cls, text: str) -> str:
         """Apply the rule to the input text.
 
         Args:
@@ -18,51 +36,47 @@ class SSMLRule(ABC):
         Returns:
             The transformed text.
         """
-        pass
+        return cls._pattern.sub(cls._replacement, text)
 
 
 class VoiceRule(SSMLRule):
     """Wrap paragraphs that start with [voice-name] in <voice> tags."""
 
-    def __init__(self):
-        self._pattern = re.compile(
-            r"^\[(?P<voice>[^\]]+)\](?P<content>.*)$", re.MULTILINE
-        )
+    _pattern = re.compile(r"^\[([^\]]+)\](.*)$", re.MULTILINE)
 
-    def apply(self, text: str) -> str:
-        return self._pattern.sub(r'<voice name="\g<voice>">\g<content></voice>', text)
+    @override
+    @classmethod
+    def _replacement(cls, match: Match[str]) -> str:
+        return f'<voice name="{match.group(1)}">{match.group(2)}</voice>'
 
 
 class BreakRule(SSMLRule):
     """Convert dot runs surrounded by spaces to <break> tags."""
 
-    def __init__(self):
-        self._pattern = re.compile(r"(?<!\S)\.+(?!\S)")
+    _pattern = re.compile(r"(?<!\S)\.+(?!\S)")
 
-    def apply(self, text: str) -> str:
-        return self._pattern.sub(
-            lambda match: f'<break time="{len(match.group(0))}s"/>', text
-        )
+    @override
+    @classmethod
+    def _replacement(cls, match: Match[str]) -> str:
+        return f'<break time="{len(match.group(0))}s"/>'
 
 
 class EmphasisRule(SSMLRule):
     """Convert _text_ to <emphasis level="strong">text</emphasis>."""
 
-    def __init__(self):
-        self._pattern = re.compile(r"(?<!\S)_(.+?)_(?!\S)")
+    _pattern = re.compile(r"(?<!\S)_(.+?)_(?!\S)")
 
-    def apply(self, text: str) -> str:
-        return self._pattern.sub(
-            lambda match: f'<emphasis level="strong">{match.group(1)}</emphasis>',
-            text,
-        )
+    @override
+    @classmethod
+    def _replacement(cls, match: Match[str]) -> str:
+        return f'<emphasis level="strong">{match.group(1)}</emphasis>'
 
 
 class SSMLProcessor:
     """Apply a sequence of SSML transformation rules."""
 
     # Apply voice rule last as it removes new line character after content
-    _rules: list[SSMLRule] = [BreakRule(), EmphasisRule(), VoiceRule()]
+    _rules: list[type[SSMLRule]] = [BreakRule, EmphasisRule, VoiceRule]
 
     @classmethod
     def to_ssml(cls, text: str) -> str:
