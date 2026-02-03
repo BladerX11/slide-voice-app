@@ -42,6 +42,7 @@ class TTSManager(QObject):
     # error message
     errorOccurred = Signal(str)
 
+    currentSlideHasAudioChanged = Signal()
     isGeneratingChanged = Signal()
     isFetchingVoicesChanged = Signal()
     isPlayingChanged = Signal()
@@ -63,7 +64,7 @@ class TTSManager(QObject):
         self._voices: list[Voice] = []
         self._is_fetching_voices: bool = False
         self._is_generating: bool = False
-        self._last_generated_file: str = ""
+        self._current_slide_has_audio: bool = False
 
         self._thread_pool = QThreadPool.globalInstance()
 
@@ -73,15 +74,6 @@ class TTSManager(QObject):
         self._media_player.errorOccurred.connect(self._on_media_error)
 
         self._settings = QSettings()
-
-    def _get_temp_dir(self) -> Path:
-        """Get the temporary directory for audio files."""
-        temp_location = QStandardPaths.writableLocation(
-            QStandardPaths.StandardLocation.TempLocation
-        )
-        temp_dir = Path(temp_location) / "slide-voice-app"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        return temp_dir
 
     def _settings_key(self, provider_id: str, setting_key: str) -> str:
         """Get the QSettings key for a provider setting."""
@@ -100,7 +92,20 @@ class TTSManager(QObject):
         """Check if the provider instance has been created."""
         return provider_id in self._providers
 
-    # Properties for QML binding
+    def _get_output_file_path(self) -> str:
+        """Get the path to the generated audio output file."""
+        temp_location = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.TempLocation
+        )
+        temp_dir = Path(temp_location) / "slide-voice-app"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        return str(temp_dir / "output.mp3")
+
+    @Property(str, constant=True)
+    def outputFile(self) -> str:
+        """The path to the generated audio output file."""
+        return self._get_output_file_path()
+
     @Property(bool, notify=isGeneratingChanged)
     def isGenerating(self) -> bool:
         """Whether audio is currently being generated."""
@@ -120,6 +125,24 @@ class TTSManager(QObject):
     def currentProvider(self) -> str:
         """The currently selected provider ID."""
         return self._current_provider_id
+
+    def get_currentSlideHasAudio(self) -> bool:
+        """Whether the current slide has generated audio ready to save."""
+        return self._current_slide_has_audio
+
+    def set_currentSlideHasAudio(self, value: bool):
+        if self._current_slide_has_audio == value:
+            return
+
+        self._current_slide_has_audio = value
+        self.currentSlideHasAudioChanged.emit()
+
+    currentSlideHasAudio = Property(
+        bool,
+        get_currentSlideHasAudio,
+        set_currentSlideHasAudio,
+        notify=currentSlideHasAudioChanged,
+    )
 
     @Slot(result=list)
     def getAvailableProviders(self) -> list[dict[str, str]]:
@@ -276,8 +299,7 @@ class TTSManager(QObject):
 
         self._is_generating = True
         self.isGeneratingChanged.emit()
-        temp_dir = self._get_temp_dir()
-        output_path = temp_dir / "output.mp3"
+        output_path = Path(self._get_output_file_path())
         provider = self._providers[self._current_provider_id]
         worker = AudioGenerateWorker(
             provider, text, voice_id, language_code, output_path
@@ -290,7 +312,7 @@ class TTSManager(QObject):
         """Handle successful audio generation."""
         self._is_generating = False
         self.isGeneratingChanged.emit()
-        self._last_generated_file = file_path
+        self.currentSlideHasAudio = True
         self.generationFinished.emit(file_path)
 
     def _on_audio_error(self, error_msg: str):
