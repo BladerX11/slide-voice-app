@@ -48,6 +48,28 @@ def get_relationships_target_by_type(
     ]
 
 
+def find_relationship_by_type_and_target(
+    rels_element: ET.Element,
+    rel_type: str,
+    target: str,
+) -> str | None:
+    """Find existing relationship with matching type and target, return rId or None.
+
+    Args:
+        rels_element: Parsed .rels XML element.
+        rel_type: Relationship type URI.
+        target: Target path for the relationship.
+
+    Returns:
+        Relationship ID (rId) if found, None otherwise.
+    """
+    for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS):
+        if rel.get("Type") == rel_type and rel.get("Target") == target:
+            return rel.get("Id")
+
+    return None
+
+
 def get_next_rid(rels_element: ET.Element) -> str:
     """Get the next available relationship ID.
 
