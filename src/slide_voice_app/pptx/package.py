@@ -1,6 +1,7 @@
 """Main PPTX package interface."""
 
 import xml.etree.ElementTree as ET
+from os import path
 from pathlib import Path
 from typing import Self
 from zipfile import ZipFile
@@ -151,7 +152,7 @@ class PptxPackage:
         if notes_target is None:
             return ""
 
-        notes_path = str((Path(slide_path).parent / notes_target).resolve())
+        notes_path = path.normpath(path.join(path.dirname(slide_path), notes_target))
 
         try:
             notes_content = self._zip.read(notes_path)
