@@ -22,6 +22,12 @@ ApplicationWindow {
             }
 
             Action {
+                text: "Export PPTX..."
+                enabled: PPTXManager.fileLoaded
+                onTriggered: exportDialog.open()
+            }
+
+            Action {
                 text: "Settings"
                 onTriggered: settingsLoader.active = true
             }
@@ -33,6 +39,14 @@ ApplicationWindow {
         title: "Open PowerPoint File"
         nameFilters: ["PowerPoint files (*.pptx)"]
         onAccepted: PPTXManager.openFile(selectedFile)
+    }
+
+    FileDialog {
+        id: exportDialog
+        title: "Export PowerPoint File"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["PowerPoint files (*.pptx)"]
+        onAccepted: PPTXManager.exportTo(selectedFile)
     }
 
     Loader {
@@ -145,6 +159,11 @@ ApplicationWindow {
                     }
                 }
             }
+
+            onCurrentIndexChanged: {
+                TTSManager.currentSlideHasAudio = false;
+                notesEditor.text = slideModel.get(slideList.currentIndex)?.notes ?? "";
+            }
         }
 
         // Right pane: Notes editor and controls
@@ -160,14 +179,6 @@ ApplicationWindow {
                     id: notesEditor
                     placeholderText: "Slide notes..."
                     wrapMode: TextArea.Wrap
-
-                    Connections {
-                        target: slideList
-
-                        function onCurrentIndexChanged() {
-                            notesEditor.text = slideModel.get(slideList.currentIndex)?.notes ?? "";
-                        }
-                    }
 
                     onTextChanged: {
                         if (activeFocus && slideList.currentIndex >= 0) {
@@ -244,9 +255,9 @@ ApplicationWindow {
 
                 Button {
                     text: "Save PPTX"
-                    enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded
+                    enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded && TTSManager.currentSlideHasAudio
                     onClicked: {
-                        console.log("Save PPTX file");
+                        PPTXManager.saveAudioForSlide(slideList.currentIndex, TTSManager.outputFile);
                     }
                 }
             }
