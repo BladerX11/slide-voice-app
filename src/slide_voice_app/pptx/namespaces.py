@@ -6,6 +6,9 @@ NAMESPACE_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationshi
 NAMESPACE_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
 NAMESPACE_P14 = "http://schemas.microsoft.com/office/powerpoint/2010/main"
 NAMESPACE_A16 = "http://schemas.microsoft.com/office/drawing/2014/main"
+NAMESPACE_CT = "http://schemas.openxmlformats.org/package/2006/content-types"
+NAMESPACE_DCTERMS = "http://purl.org/dc/terms/"
+NAMESPACE_XSI = "http://www.w3.org/2001/XMLSchema-instance"
 
 NSMAP: dict[str, str] = {
     "a": NAMESPACE_A,
@@ -18,12 +21,9 @@ NSMAP: dict[str, str] = {
 NSMAP_RELS: dict[str, str] = {
     "r": NAMESPACE_RELS,
 }
-
-# Relationship types
 REL_TYPE_SLIDE = (
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
 )
-
 REL_TYPE_NOTES_SLIDE = (
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide"
 )
