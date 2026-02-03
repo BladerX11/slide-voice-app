@@ -28,24 +28,24 @@ def read_rels(zip_file: ZipFile, rels_path: str) -> ET.Element:
     return ET.fromstring(content)
 
 
-def get_relationship_target(
+def get_relationships_target_by_type(
     rels_element: ET.Element,
     rel_type: str,
-) -> str | None:
-    """Find a relationship target by type.
+) -> list[str]:
+    """Find all relationships matching a specific type.
 
     Args:
         rels_element: Parsed .rels XML element.
         rel_type: Relationship type URI to find.
 
     Returns:
-        Target path if found, None otherwise.
+        List of matching relationship with targets.
     """
-    for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS):
-        if rel.get("Type") == rel_type:
-            return rel.get("Target")
-
-    return None
+    return [
+        target
+        for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS)
+        if rel.get("Type") == rel_type and (target := rel.get("Target"))
+    ]
 
 
 def get_next_rid(rels_element: ET.Element) -> str:

@@ -11,10 +11,10 @@ from .exceptions import (
     NotesNotFoundError,
     SlideNotFoundError,
 )
-from .namespaces import NSMAP_RELS, REL_TYPE_NOTES_SLIDE, REL_TYPE_SLIDE
+from .namespaces import REL_TYPE_NOTES_SLIDE, REL_TYPE_SLIDE
 from .notes import extract_notes_text
 from .rels import (
-    get_relationship_target,
+    get_relationships_target_by_type,
     read_rels,
 )
 
@@ -87,21 +87,11 @@ class PptxPackage:
             return self._slide_paths
 
         rels = read_rels(self._zip, "ppt/_rels/presentation.xml.rels")
-        targets = [
-            rel.get("Target")
-            for rel in rels.findall(
-                f".//r:Relationship[@Type='{REL_TYPE_SLIDE}']", NSMAP_RELS
-            )
-            if rel.get("Target") is not None
-        ]
+        targets = get_relationships_target_by_type(rels, REL_TYPE_SLIDE)
         slides = []
 
         for target in targets:
-            target_str = str(target)
-
-            if "slides/slide" not in target_str:
-                continue
-
+            target_str = target
             full_path = f"ppt/{target_str}"
             slide_num = int(full_path.split("slide")[-1].replace(".xml", ""))
             slides.append((slide_num, full_path))
@@ -147,11 +137,15 @@ class PptxPackage:
         slide_filename = slide_path.split("/")[-1]
         slide_rels_path = f"ppt/slides/_rels/{slide_filename}.rels"
         slide_rels = read_rels(self._zip, slide_rels_path)
-        notes_target = get_relationship_target(slide_rels, REL_TYPE_NOTES_SLIDE)
 
-        if notes_target is None:
+        if not (
+            notes_targets := get_relationships_target_by_type(
+                slide_rels, REL_TYPE_NOTES_SLIDE
+            )
+        ):
             return ""
 
+        notes_target = notes_targets[0]
         notes_path = path.normpath(path.join(path.dirname(slide_path), notes_target))
 
         try:
