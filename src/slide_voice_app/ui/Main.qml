@@ -17,13 +17,24 @@ ApplicationWindow {
             title: "Menu"
 
             Action {
+                text: "Open PPTX..."
+                onTriggered: fileDialog.open()
+            }
+
+            Action {
                 text: "Settings"
                 onTriggered: settingsLoader.active = true
             }
         }
     }
 
-    // Settings window loader
+    FileDialog {
+        id: fileDialog
+        title: "Open PowerPoint File"
+        nameFilters: ["PowerPoint files (*.pptx)"]
+        onAccepted: PPTXManager.openFile(selectedFile)
+    }
+
     Loader {
         id: settingsLoader
         active: false
@@ -42,22 +53,8 @@ ApplicationWindow {
         }
     }
 
-    // Dummy data model for slides
     ListModel {
         id: slideModel
-
-        ListElement {
-            notes: "These are the notes for Slide 1.\n\nYou can edit them here."
-        }
-        ListElement {
-            notes: "Notes for Slide 2 go here.\n\nThis slide covers the main topic."
-        }
-        ListElement {
-            notes: "Slide 3 contains supporting details.\n\nRemember to mention the key points."
-        }
-        ListElement {
-            notes: "Final slide with conclusions.\n\nThank the audience!"
-        }
     }
 
     ListModel {
@@ -66,6 +63,21 @@ ApplicationWindow {
 
     ListModel {
         id: voiceModel
+    }
+
+    Connections {
+        target: PPTXManager
+
+        function onSlidesLoaded(slides) {
+            slideModel.clear();
+            slides.forEach(slide => slideModel.append(slide));
+            slideList.currentIndex = slideModel.count > 0 ? 0 : -1;
+        }
+
+        function onErrorOccurred(message) {
+            errorDialog.text = message;
+            errorDialog.open();
+        }
     }
 
     Connections {
@@ -158,7 +170,7 @@ ApplicationWindow {
                     }
 
                     onTextChanged: {
-                        if (activeFocus && slideList.currentIndex > 0) {
+                        if (activeFocus && slideList.currentIndex >= 0) {
                             slideModel.setProperty(slideList.currentIndex, "notes", text);
                         }
                     }
@@ -232,7 +244,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Save PPTX"
-                    enabled: !TTSManager.isGenerating
+                    enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded
                     onClicked: {
                         console.log("Save PPTX file");
                     }
