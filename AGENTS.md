@@ -2,7 +2,7 @@
 
 Slide Voice App is a desktop tool that edits PowerPoint slide notes, generates TTS audio, and embeds the audio back into `.pptx` files.
 
-- Package manager: `uv`
+Package manager: `uv`
 
 Common commands
 
@@ -27,11 +27,7 @@ uv run ruff format .
 # Typecheck
 uv run ty check .
 ```
-
-More detail
-
-- docs/agents/commands.md
-- docs/agents/project-structure.md
-- docs/agents/python-style.md
-- docs/agents/pyside-qml.md
-- docs/agents/documentation.md
+Project structure: docs/agents/project-structure.md
+Python guidelines: docs/agents/python.md
+PySide guidelines: docs/agents/pyside.md
+Documentation: docs/agents/documentation.md
