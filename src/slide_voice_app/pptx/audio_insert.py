@@ -434,30 +434,11 @@ def _compute_next_delay(cmd_parent: ET.Element) -> int:
         cmd_parent: The childTnLst element containing command nodes.
 
     Returns:
-        Delay in milliseconds for the next audio command.
+        Delay for the next audio command.
     """
     p = NAMESPACE_P
     max_delay = -1
 
-    # for par in cmd_parent.findall(f"{{{p}}}par"):
-    #     c_tn = par.find(f"{{{p}}}cTn")
-    #
-    #     if c_tn is None:
-    #         continue
-    #
-    #     cond = c_tn.find(f"{{{p}}}stCondLst/{{{p}}}cond[@delay]")
-    #
-    #     if cond is None:
-    #         continue
-    #
-    #     delay_str = cond.get("delay", "")
-    #
-    #     if not delay_str.isdigit():
-    #         continue
-    #
-    #     max_delay = max(max_delay, int(delay_str))
-    #
-    # return max_delay + 1
     for cond in cmd_parent.findall(
         f".//{{{p}}}par/{{{p}}}cTn/{{{p}}}stCondLst/{{{p}}}cond[@delay]"
     ):
