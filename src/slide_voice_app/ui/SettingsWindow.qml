@@ -5,7 +5,7 @@ import QtCore
 
 import SlideVoiceApp
 
-Window {
+ApplicationWindow {
     id: settingsWindow
     title: "Settings"
     width: 500
