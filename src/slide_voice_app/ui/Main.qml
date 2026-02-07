@@ -14,17 +14,17 @@ ApplicationWindow {
 
     menuBar: MenuBar {
         Menu {
-            title: "Menu"
+            title: "File"
 
             Action {
-                text: "Open PPTX..."
+                text: "Open"
                 onTriggered: fileDialog.open()
             }
 
             Action {
-                text: "Export PPTX..."
+                text: "Save"
                 enabled: PPTXManager.fileLoaded
-                onTriggered: exportDialog.open()
+                onTriggered: saveDialog.open()
             }
 
             Action {
@@ -42,7 +42,7 @@ ApplicationWindow {
     }
 
     FileDialog {
-        id: exportDialog
+        id: saveDialog
         title: "Export PowerPoint File"
         fileMode: FileDialog.SaveFile
         nameFilters: ["PowerPoint files (*.pptx)"]
