@@ -25,7 +25,7 @@ def run_build():
                 "--enable-plugin=pyside6",
                 "--include-qt-plugins=qml,multimedia",
                 "--output-filename=slide-voice-app",
-                "--standalone",
+                "--mode=app",
                 f"--output-dir={BASE_DIR / 'dist'}",
                 "--include-data-files=src/slide_voice_app/pptx/resources/narration-icon.png=slide_voice_app/pptx/resources/narration-icon.png",
                 PKG_DIR,
