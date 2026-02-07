@@ -2,6 +2,8 @@
 
 import shutil
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from PySide6.QtCore import Property, QObject, QStandardPaths, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlSingleton
@@ -56,7 +58,7 @@ class PPTXManager(QObject):
         Args:
             file_url: string to the .pptx file.
         """
-        path = Path(file_url.replace("file://", ""))
+        path = Path(url2pathname(urlparse(file_url).path))
 
         if self._package is not None:
             self._package.close()
@@ -96,7 +98,7 @@ class PPTXManager(QObject):
             return
 
         try:
-            mp3_path = Path(mp3_file_url.replace("file://", ""))
+            mp3_path = Path(url2pathname(urlparse(mp3_file_url).path))
             save_pptx_with_audio(self._temp_pptx_path, slide_index, mp3_path)
         except FileNotFoundError as e:
             self.errorOccurred.emit(f"File not found: {e}")
@@ -116,7 +118,7 @@ class PPTXManager(QObject):
             self.errorOccurred.emit("No PPTX file loaded to export")
             return
         try:
-            output_path = Path(output_file_url.replace("file://", ""))
+            output_path = Path(url2pathname(urlparse(output_file_url).path))
             shutil.copy2(self._temp_pptx_path, output_path)
         except Exception as e:
             self.errorOccurred.emit(f"Failed to export file: {e}")
