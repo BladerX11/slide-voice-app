@@ -2,25 +2,19 @@
 
 import hashlib
 import re
-import tempfile
 import uuid
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
 
-from .exceptions import SlideNotFoundError
 from .namespaces import (
     NAMESPACE_A,
     NAMESPACE_A16,
     NAMESPACE_CT,
-    NAMESPACE_DCTERMS,
     NAMESPACE_P,
     NAMESPACE_P14,
     NAMESPACE_R,
     NAMESPACE_RELS,
-    NAMESPACE_XSI,
     REL_TYPE_AUDIO,
     REL_TYPE_IMAGE,
     REL_TYPE_MEDIA,
@@ -542,48 +536,23 @@ def _create_audio_node(
     return audio
 
 
-def _update_core_xml_modified(core_content: bytes) -> bytes:
-    """Update dcterms:modified timestamp in core.xml.
-
-    Args:
-        core_content: Raw bytes of the core.xml file.
-
-    Returns:
-        Modified core.xml content as bytes.
-    """
-    ET.register_namespace("dcterms", NAMESPACE_DCTERMS)
-    ET.register_namespace("xsi", NAMESPACE_XSI)
-    root = ET.fromstring(core_content)
-    modified = root.find(f"{{{NAMESPACE_DCTERMS}}}modified")
-
-    if modified is None:
-        modified = ET.SubElement(root, f"{{{NAMESPACE_DCTERMS}}}modified")
-
-    now = datetime.now(timezone.utc).replace(microsecond=0)
-    modified.text = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    modified.set(f"{{{NAMESPACE_XSI}}}type", "dcterms:W3CDTF")
-
-    return ET.tostring(root, encoding="UTF-8", xml_declaration=True)
-
-
-def save_pptx_with_audio(
-    pptx_path: Path,
-    slide_index: int,
+def add_audio_to_slide(
+    work_path: Path,
+    slide_part_path: str,
     mp3_path: Path,
 ) -> None:
-    """Insert audio into a PPTX slide and save in-place.
+    """Insert audio into an extracted slide workspace.
 
     Args:
-        pptx_path: Path to the .pptx file to modify.
-        slide_index: Zero-based slide index.
+        work_path: Extracted PPTX workspace root directory.
+        slide_part_path: OOXML slide path (e.g. ppt/slides/slide1.xml).
         mp3_path: Path to the MP3 audio file to insert.
 
     Raises:
         FileNotFoundError: If input files don't exist.
-        SlideNotFoundError: If the specified slide does not exist.
     """
-    if not pptx_path.exists():
-        raise FileNotFoundError(f"Input PPTX not found: {pptx_path}")
+    if not work_path.exists() or not work_path.is_dir():
+        raise FileNotFoundError(f"Workspace not found: {work_path}")
 
     if not mp3_path.exists():
         raise FileNotFoundError(f"MP3 file not found: {mp3_path}")
@@ -600,118 +569,96 @@ def save_pptx_with_audio(
     ET.register_namespace("p14", NAMESPACE_P14)
     ET.register_namespace("a16", NAMESPACE_A16)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        work_path = Path(tmpdir)
+    slide_path = work_path / slide_part_path
 
-        with ZipFile(pptx_path, "r") as zf_in:
-            zf_in.extractall(work_path)
+    if not slide_path.exists():
+        raise FileNotFoundError(f"Slide not found in workspace: {slide_part_path}")
 
-        slide_num = slide_index + 1
-        slide_path = work_path / f"ppt/slides/slide{slide_num}.xml"
+    media_dir = work_path / "ppt/media"
+    media_dir.mkdir(parents=True, exist_ok=True)
 
-        if not slide_path.exists():
-            raise SlideNotFoundError(
-                slide_index, len(list((work_path / "ppt/slides").glob("slide*.xml")))
-            )
+    existing_mp3s = _find_media_files(media_dir, "media", "mp3")
+    existing_pngs = _find_media_files(media_dir, "image", "png")
 
-        media_dir = work_path / "ppt/media"
-        media_dir.mkdir(parents=True, exist_ok=True)
+    mp3_filename = _find_existing_media_by_hash(media_dir, existing_mp3s, mp3_hash)
+    icon_filename = _find_existing_media_by_hash(media_dir, existing_pngs, icon_hash)
 
-        existing_mp3s = _find_media_files(media_dir, "media", "mp3")
-        existing_pngs = _find_media_files(media_dir, "image", "png")
+    if mp3_filename is None:
+        mp3_filename = _next_media_filename(existing_mp3s, "media", "mp3")
+        (media_dir / mp3_filename).write_bytes(mp3_data)
 
-        mp3_filename = _find_existing_media_by_hash(media_dir, existing_mp3s, mp3_hash)
-        icon_filename = _find_existing_media_by_hash(
-            media_dir, existing_pngs, icon_hash
-        )
+    if icon_filename is None:
+        icon_filename = _next_media_filename(existing_pngs, "image", "png")
+        (media_dir / icon_filename).write_bytes(icon_data)
 
-        if mp3_filename is None:
-            mp3_filename = _next_media_filename(existing_mp3s, "media", "mp3")
-            (media_dir / mp3_filename).write_bytes(mp3_data)
+    ct_path = work_path / "[Content_Types].xml"
+    ct_root = ET.fromstring(ct_path.read_bytes())
+    _ensure_content_type_default(ct_root, "mp3", "audio/mpeg")
+    _ensure_content_type_default(ct_root, "png", "image/png")
+    ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
-        if icon_filename is None:
-            icon_filename = _next_media_filename(existing_pngs, "image", "png")
-            (media_dir / icon_filename).write_bytes(icon_data)
+    slide_filename = Path(slide_part_path).name
+    rels_dir = work_path / "ppt/slides/_rels"
+    rels_dir.mkdir(parents=True, exist_ok=True)
+    slide_rels_path = rels_dir / f"{slide_filename}.rels"
 
-        ct_path = work_path / "[Content_Types].xml"
-        ct_root = ET.fromstring(ct_path.read_bytes())
-        _ensure_content_type_default(ct_root, "mp3", "audio/mpeg")
-        _ensure_content_type_default(ct_root, "png", "image/png")
-        ct_path.write_bytes(
-            ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True)
-        )
+    if slide_rels_path.exists():
+        rels_root = ET.fromstring(slide_rels_path.read_bytes())
+    else:
+        rels_root = ET.Element(f"{{{NAMESPACE_RELS}}}Relationships")
 
-        rels_dir = work_path / "ppt/slides/_rels"
-        rels_dir.mkdir(parents=True, exist_ok=True)
-        slide_rels_path = rels_dir / f"slide{slide_num}.xml.rels"
+    media_target = f"../media/{mp3_filename}"
+    icon_target = f"../media/{icon_filename}"
 
-        if slide_rels_path.exists():
-            rels_root = ET.fromstring(slide_rels_path.read_bytes())
-        else:
-            rels_root = ET.Element(f"{{{NAMESPACE_RELS}}}Relationships")
+    media_rid = find_relationship_by_type_and_target(
+        rels_root, REL_TYPE_MEDIA, media_target
+    )
+    audio_rid = find_relationship_by_type_and_target(
+        rels_root, REL_TYPE_AUDIO, media_target
+    )
+    image_rid = find_relationship_by_type_and_target(
+        rels_root, REL_TYPE_IMAGE, icon_target
+    )
 
-        media_target = f"../media/{mp3_filename}"
-        icon_target = f"../media/{icon_filename}"
+    if media_rid is None:
+        media_rid = add_relationship(rels_root, REL_TYPE_MEDIA, media_target)
 
-        media_rid = find_relationship_by_type_and_target(
-            rels_root, REL_TYPE_MEDIA, media_target
-        )
-        audio_rid = find_relationship_by_type_and_target(
-            rels_root, REL_TYPE_AUDIO, media_target
-        )
-        image_rid = find_relationship_by_type_and_target(
-            rels_root, REL_TYPE_IMAGE, icon_target
-        )
+    if audio_rid is None:
+        audio_rid = add_relationship(rels_root, REL_TYPE_AUDIO, media_target)
 
-        if media_rid is None:
-            media_rid = add_relationship(rels_root, REL_TYPE_MEDIA, media_target)
+    if image_rid is None:
+        image_rid = add_relationship(rels_root, REL_TYPE_IMAGE, icon_target)
 
-        if audio_rid is None:
-            audio_rid = add_relationship(rels_root, REL_TYPE_AUDIO, media_target)
+    ET.register_namespace("", NAMESPACE_RELS)
+    slide_rels_path.write_bytes(
+        ET.tostring(rels_root, encoding="UTF-8", xml_declaration=True)
+    )
 
-        if image_rid is None:
-            image_rid = add_relationship(rels_root, REL_TYPE_IMAGE, icon_target)
+    slide_root = ET.fromstring(slide_path.read_bytes())
+    spid = _get_max_shape_id(slide_root) + 1
 
-        ET.register_namespace("", NAMESPACE_RELS)
-        slide_rels_path.write_bytes(
-            ET.tostring(rels_root, encoding="UTF-8", xml_declaration=True)
-        )
+    sp_tree = _get_or_create_pic_parent(slide_root)
+    pic = _create_pic_element(
+        spid=spid,
+        name=mp3_path.stem,
+        media_rid=media_rid,
+        audio_rid=audio_rid,
+        image_rid=image_rid,
+    )
+    sp_tree.append(pic)
 
-        slide_root = ET.fromstring(slide_path.read_bytes())
-        spid = _get_max_shape_id(slide_root) + 1
+    cmd_parent = _get_or_create_command_parent(slide_root)
+    audio_parent = _get_or_create_audio_parent(slide_root)
 
-        sp_tree = _get_or_create_pic_parent(slide_root)
-        pic = _create_pic_element(
-            spid=spid,
-            name=mp3_path.stem,
-            media_rid=media_rid,
-            audio_rid=audio_rid,
-            image_rid=image_rid,
-        )
-        sp_tree.append(pic)
+    cmd_base_id = _get_max_ctn_id(slide_root) + 1
+    delay = _compute_next_delay(cmd_parent)
+    cmd_node = _create_command_node(spid, delay, cmd_base_id)
+    cmd_parent.append(cmd_node)
 
-        cmd_parent = _get_or_create_command_parent(slide_root)
-        audio_parent = _get_or_create_audio_parent(slide_root)
+    audio_ctn_id = _get_max_ctn_id(slide_root) + 1
+    audio_node = _create_audio_node(spid, audio_ctn_id)
+    audio_parent.append(audio_node)
 
-        cmd_base_id = _get_max_ctn_id(slide_root) + 1
-        delay = _compute_next_delay(cmd_parent)
-        cmd_node = _create_command_node(spid, delay, cmd_base_id)
-        cmd_parent.append(cmd_node)
-
-        audio_ctn_id = _get_max_ctn_id(slide_root) + 1
-        audio_node = _create_audio_node(spid, audio_ctn_id)
-        audio_parent.append(audio_node)
-
-        slide_path.write_bytes(
-            ET.tostring(slide_root, encoding="UTF-8", xml_declaration=True)
-        )
-
-        core_path = work_path / "docProps/core.xml"
-        if core_path.exists():
-            core_path.write_bytes(_update_core_xml_modified(core_path.read_bytes()))
-
-        with ZipFile(pptx_path, "w", ZIP_DEFLATED) as zf_out:
-            for file_path in work_path.rglob("*"):
-                if file_path.is_file():
-                    rel_name = str(file_path.relative_to(work_path))
-                    zf_out.write(file_path, rel_name)
+    slide_path.write_bytes(
+        ET.tostring(slide_root, encoding="UTF-8", xml_declaration=True)
+    )

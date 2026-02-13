@@ -1,6 +1,7 @@
 """Relationship (.rels) file management for PPTX."""
 
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from zipfile import ZipFile
 
 from .exceptions import RelsNotFoundError
@@ -26,6 +27,24 @@ def read_rels(zip_file: ZipFile, rels_path: str) -> ET.Element:
         raise RelsNotFoundError(rels_path) from e
 
     return ET.fromstring(content)
+
+
+def read_rels_path(rels_path: Path) -> ET.Element:
+    """Read and parse a relationship (.rels) part from disk.
+
+    Args:
+        rels_path: Path to the .rels part.
+
+    Returns:
+        Parsed XML Element of the relationships.
+
+    Raises:
+        RelsNotFoundError: If the .rels file does not exist on disk.
+    """
+    if not rels_path.exists():
+        raise RelsNotFoundError(str(rels_path))
+
+    return ET.fromstring(rels_path.read_bytes())
 
 
 def get_relationships_target_by_type(

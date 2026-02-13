@@ -1,16 +1,16 @@
 """PPTX Manager for bridging PPTX file operations with QML UI."""
 
-import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
-from PySide6.QtCore import Property, QObject, QStandardPaths, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlSingleton
 
-from slide_voice_app.pptx import PptxPackage, save_pptx_with_audio
+from slide_voice_app.pptx import PptxFile
 from slide_voice_app.pptx.exceptions import (
     InvalidPptxError,
+    RelsNotFoundError,
     SlideNotFoundError,
 )
 
@@ -29,27 +29,20 @@ class PPTXManager(QObject):
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
-        self._package: PptxPackage | None = None
-        self._temp_pptx_path: Path | None = None
+        self._pptx_file: PptxFile | None = None
 
     @Property(bool, notify=fileLoadedChanged)
     def fileLoaded(self) -> bool:
         """Whether a PPTX file is currently loaded."""
-        return self._temp_pptx_path is not None
+        return self._pptx_file is not None
 
     def _unload_file(self):
         """Indicate file is not loaded."""
-        self._temp_pptx_path = None
-        self.fileLoadedChanged.emit()
+        if self._pptx_file is not None:
+            self._pptx_file.close()
 
-    def _get_temp_copy_path(self, source_path: Path) -> Path:
-        """Get the temp copy path for a source file."""
-        temp_root = QStandardPaths.writableLocation(
-            QStandardPaths.StandardLocation.TempLocation
-        )
-        temp_dir = Path(temp_root) / "slide-voice-app"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        return temp_dir / source_path.name
+        self._pptx_file = None
+        self.fileLoadedChanged.emit()
 
     @Slot(str)
     def openFile(self, file_url: str):
@@ -60,19 +53,13 @@ class PPTXManager(QObject):
         """
         path = Path(url2pathname(urlparse(file_url).path))
 
-        if self._package is not None:
-            self._package.close()
-            self._package = None
-
         self._unload_file()
 
         try:
-            self._temp_pptx_path = self._get_temp_copy_path(path)
-            shutil.copy2(path, self._temp_pptx_path)
-            self._package = PptxPackage.open(self._temp_pptx_path)
+            self._pptx_file = PptxFile.open(path)
+            pptx_file = self._pptx_file
             self.fileLoadedChanged.emit()
-
-            notes = self._package.get_all_slide_notes()
+            notes = pptx_file.get_all_slide_notes()
             slides_data = [{"notes": note} for note in notes]
             self.slidesLoaded.emit(slides_data)
 
@@ -82,24 +69,27 @@ class PPTXManager(QObject):
         except InvalidPptxError as e:
             self._unload_file()
             self.errorOccurred.emit(str(e))
+        except RelsNotFoundError as e:
+            self._unload_file()
+            self.errorOccurred.emit(str(e))
         except Exception as e:
             self._unload_file()
             self.errorOccurred.emit(f"Failed to open file: {e}")
 
     @Slot(int, str)
     def saveAudioForSlide(self, slide_index: int, mp3_file_url: str):
-        """Insert audio into the current slide of the temp PPTX copy."""
+        """Insert audio into the selected slide in the loaded PPTX workspace."""
         if not mp3_file_url:
             self.errorOccurred.emit("No audio file provided")
             return
 
-        if self._temp_pptx_path is None:
+        if self._pptx_file is None:
             self.errorOccurred.emit("No PPTX file loaded")
             return
 
         try:
             mp3_path = Path(url2pathname(urlparse(mp3_file_url).path))
-            save_pptx_with_audio(self._temp_pptx_path, slide_index, mp3_path)
+            self._pptx_file.save_audio_for_slide(slide_index, mp3_path)
         except FileNotFoundError as e:
             self.errorOccurred.emit(f"File not found: {e}")
         except SlideNotFoundError as e:
@@ -109,16 +99,21 @@ class PPTXManager(QObject):
 
     @Slot(str)
     def exportTo(self, output_file_url: str):
-        """Copy the temp PPTX to the selected output path."""
+        """Export the current PPTX workspace to the selected output path."""
         if not output_file_url:
             self.errorOccurred.emit("No output file provided")
             return
 
-        if self._temp_pptx_path is None:
+        if self._pptx_file is None:
             self.errorOccurred.emit("No PPTX file loaded to export")
             return
         try:
             output_path = Path(url2pathname(urlparse(output_file_url).path))
-            shutil.copy2(self._temp_pptx_path, output_path)
+
+            if self._pptx_file is None:
+                self.errorOccurred.emit("No PPTX file loaded to export")
+                return
+
+            self._pptx_file.export_to(output_path)
         except Exception as e:
             self.errorOccurred.emit(f"Failed to export file: {e}")
