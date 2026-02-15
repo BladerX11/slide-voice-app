@@ -13,8 +13,6 @@ ApplicationWindow {
     modality: Qt.ApplicationModal
     flags: Qt.Dialog
 
-    property var pendingChanges: ({})
-
     ListModel {
         id: providerModel
     }
@@ -33,9 +31,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         let providers = TTSManager.getAvailableProviders();
-        providers.forEach(function (provider) {
-            providerModel.append(provider);
-        });
+        providers.forEach(provider => providerModel.append(provider));
 
         if (providerModel.count > 0) {
             providerComboBox.currentIndex = 0;
@@ -45,7 +41,6 @@ ApplicationWindow {
 
     function loadProviderSettings(providerId) {
         settingsModel.clear();
-        pendingChanges = {};
         TTSManager.getProviderSettings(providerId).forEach(setting => settingsModel.append(setting));
     }
 
@@ -55,8 +50,9 @@ ApplicationWindow {
 
         let providerId = providerComboBox.currentValue;
 
-        for (let key in pendingChanges) {
-            appSettings.setValue(settingsKey(providerId, key), pendingChanges[key]);
+        for (let i = 0; i < settingsModel.count; i++) {
+            let setting = settingsModel.get(i);
+            appSettings.setValue(settingsKey(providerId, setting.key), setting.value);
         }
 
         TTSManager.setProvider(providerId);
@@ -99,22 +95,27 @@ ApplicationWindow {
             spacing: 15
             model: settingsModel
             delegate: RowLayout {
+                id: settingList
+                required property string label
+                required property string value
+                required property string type
+                required property string placeholder
+                required property var model
+
                 width: parent.width
                 spacing: 5
 
                 Label {
-                    text: model.label
+                    text: settingList.label
                 }
 
                 TextField {
                     Layout.fillWidth: true
-                    text: model.value
-                    placeholderText: model.placeholder
-                    echoMode: model.type === "password" ? TextInput.Password : TextInput.Normal
+                    text: settingList.value
+                    placeholderText: settingList.placeholder
+                    echoMode: settingList.type === "password" ? TextInput.Password : TextInput.Normal
 
-                    onTextChanged: {
-                        settingsWindow.pendingChanges[model.key] = text;
-                    }
+                    onTextChanged: settingList.ListView.view.model.setProperty(settingList.model.index, "value", text)
                 }
             }
         }
