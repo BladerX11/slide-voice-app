@@ -140,6 +140,8 @@ ApplicationWindow {
 
             delegate: Rectangle {
                 id: slideItem
+                required property var model
+
                 width: 140
                 height: 40
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -149,13 +151,13 @@ ApplicationWindow {
 
                 Text {
                     anchors.centerIn: parent
-                    text: `Slide ${model.index + 1}`
+                    text: `Slide ${slideItem.model.index + 1}`
                 }
 
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
-                        slideItem.ListView.view.currentIndex = model.index;
+                        slideItem.ListView.view.currentIndex = slideItem.model.index;
                     }
                 }
             }
@@ -230,8 +232,12 @@ ApplicationWindow {
                     }
 
                     delegate: ItemDelegate {
-                        width: voiceComboBox.width
-                        text: `${model.name} (${model.languageCode}, ${model.gender})`
+                        required property string name
+                        required property string languageCode
+                        required property string gender
+
+                        width: ListView.view.width
+                        text: `${name} (${languageCode}, ${gender})`
                     }
                 }
 
@@ -254,7 +260,7 @@ ApplicationWindow {
                 }
 
                 Button {
-                    text: "Save PPTX"
+                    text: "Insert Audio"
                     enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded && TTSManager.currentSlideHasAudio
                     onClicked: {
                         PPTXManager.saveAudioForSlide(slideList.currentIndex, TTSManager.outputFile);
