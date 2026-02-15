@@ -133,7 +133,7 @@ ApplicationWindow {
         // Left pane: Slide list
         ListView {
             id: slideList
-            Layout.preferredWidth: 160
+            Layout.preferredWidth: 140
             Layout.fillHeight: true
             model: slideModel
             spacing: 10
@@ -142,9 +142,8 @@ ApplicationWindow {
                 id: slideItem
                 required property var model
 
-                width: 140
+                width: ListView.view.width
                 height: 40
-                anchors.horizontalCenter: parent.horizontalCenter
                 radius: 4
                 border.width: ListView.isCurrentItem ? 3 : 0
                 border.color: palette.highlight
