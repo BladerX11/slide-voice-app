@@ -25,10 +25,6 @@ ApplicationWindow {
         id: appSettings
     }
 
-    function settingsKey(providerId, key) {
-        return providerId + "/" + key;
-    }
-
     Component.onCompleted: {
         let providers = TTSManager.getAvailableProviders();
         providers.forEach(provider => providerModel.append(provider));
@@ -52,7 +48,7 @@ ApplicationWindow {
 
         for (let i = 0; i < settingsModel.count; i++) {
             let setting = settingsModel.get(i);
-            appSettings.setValue(settingsKey(providerId, setting.key), setting.value);
+            appSettings.setValue(setting.key, setting.value);
         }
 
         TTSManager.setProvider(providerId);

@@ -175,21 +175,23 @@ class TTSManager(QObject):
         info = self._provider_info.get(provider_id)
         assert info is not None
 
-        return [
-            {
-                "key": s.key,
-                "label": s.label,
-                "type": s.setting_type.value,
-                "placeholder": s.placeholder,
-                "value": self._settings.value(
-                    self._settings_key(provider_id, s.key), ""
-                ),
-            }
-            for s in info.settings
-        ]
+        settings = []
 
-    @Slot(str, result=dict)
-    def getProviderSettingValues(self, provider_id: str) -> dict[str, str]:
+        for setting in info.settings:
+            settings_key = self._settings_key(provider_id, setting.key)
+            settings.append(
+                {
+                    "key": settings_key,
+                    "label": setting.label,
+                    "type": setting.setting_type.value,
+                    "placeholder": setting.placeholder,
+                    "value": self._settings.value(settings_key, ""),
+                }
+            )
+
+        return settings
+
+    def _get_provider_setting_values(self, provider_id: str) -> dict[str, str]:
         """Get all saved setting values for a provider.
 
         Args:
@@ -225,7 +227,7 @@ class TTSManager(QObject):
 
         provider = self._providers[provider_id]
 
-        settings = self.getProviderSettingValues(provider_id)
+        settings = self._get_provider_setting_values(provider_id)
         provider.configure(settings)
         self._current_provider_id = provider_id
         self.currentProviderChanged.emit()
