@@ -180,6 +180,8 @@ ApplicationWindow {
                     id: notesEditor
                     placeholderText: "Slide notes..."
                     wrapMode: TextArea.Wrap
+                    persistentSelection: true
+                    readonly property string textToGenerate: selectedText.length > 0 ? selectedText : text
 
                     onTextChanged: {
                         if (activeFocus && slideList.currentIndex >= 0) {
@@ -246,14 +248,14 @@ ApplicationWindow {
 
                 Button {
                     text: TTSManager.isPlaying ? "Stop" : "Preview"
-                    enabled: !TTSManager.isGenerating && !TTSManager.isFetchingVoices && voiceComboBox.currentIndex >= 0 && notesEditor.text.trim().length > 0
+                    enabled: !TTSManager.isGenerating && !TTSManager.isFetchingVoices && voiceComboBox.currentIndex >= 0 && notesEditor.textToGenerate.trim().length > 0
 
                     onClicked: {
                         if (TTSManager.isPlaying) {
                             TTSManager.stopAudio();
                         } else {
                             let languageCode = voiceModel.get(voiceComboBox.currentIndex).languageCode;
-                            TTSManager.generateAndPlay(notesEditor.text, voiceComboBox.currentValue, languageCode);
+                            TTSManager.generateAndPlay(notesEditor.textToGenerate, voiceComboBox.currentValue, languageCode);
                         }
                     }
                 }
