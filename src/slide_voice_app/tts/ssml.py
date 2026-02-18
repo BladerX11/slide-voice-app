@@ -58,7 +58,7 @@ class BreakRule(SSMLRule):
     @override
     @classmethod
     def _replacement(cls, match: Match[str]) -> str:
-        return f'<break time="{len(match.group(0))}s"/>'
+        return f'<break time="{len(match.group(0)) * 0.5}s"/>'
 
 
 class EmphasisRule(SSMLRule):

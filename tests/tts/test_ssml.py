@@ -7,11 +7,11 @@ from slide_voice_app.tts.ssml import SSMLProcessor
     "input_text, expected",
     [
         # Period next to words ignored, around spaces processed
-        ("Hello. .. .World", '<speak>Hello. <break time="2s"/> .World</speak>'),
+        ("Hello. .. .World", '<speak>Hello. <break time="1.0s"/> .World</speak>'),
         # Period start/end of string
-        (".", '<speak><break time="1s"/></speak>'),
+        (".", '<speak><break time="0.5s"/></speak>'),
         # Period start/end of paragraph
-        ("\n.\n", '<speak>\n<break time="1s"/>\n</speak>'),
+        ("\n.\n", '<speak>\n<break time="0.5s"/>\n</speak>'),
         # Inner underscore ignored, outer underscores processed
         (
             "check _my_variable_ value",
@@ -34,7 +34,7 @@ from slide_voice_app.tts.ssml import SSMLProcessor
         # Combined
         (
             "[en-US-Wavenet-D] _Hi_ there ..",
-            '<speak><voice name="en-US-Wavenet-D"> <emphasis level="strong">Hi</emphasis> there <break time="2s"/></voice></speak>',
+            '<speak><voice name="en-US-Wavenet-D"> <emphasis level="strong">Hi</emphasis> there <break time="1.0s"/></voice></speak>',
         ),
         # Escape XML special characters in content
         (
