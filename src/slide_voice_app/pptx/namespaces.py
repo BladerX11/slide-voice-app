@@ -21,6 +21,11 @@ NSMAP: dict[str, str] = {
 NSMAP_RELS: dict[str, str] = {
     "r": NAMESPACE_RELS,
 }
+
+NSMAP_CT: dict[str, str] = {
+    "ct": NAMESPACE_CT,
+}
+
 REL_TYPE_SLIDE = (
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
 )

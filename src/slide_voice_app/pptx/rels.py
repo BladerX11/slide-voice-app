@@ -6,6 +6,21 @@ from zipfile import ZipFile
 
 from .exceptions import RelsNotFoundError
 from .namespaces import NAMESPACE_RELS, NSMAP_RELS
+from .xpath import (
+    XPATH_RELATIONSHIP_BY_TYPE,
+    XPATH_RELATIONSHIP_BY_TYPE_AND_TARGET,
+    XPATH_RELATIONSHIP_WITH_ID,
+)
+
+
+def _find_relationships_by_type(
+    rels_element: ET.Element, rel_type: str
+) -> list[ET.Element]:
+    """Return relationship elements matching the given type."""
+    return rels_element.findall(
+        XPATH_RELATIONSHIP_BY_TYPE.format(rel_type=rel_type),
+        namespaces=NSMAP_RELS,
+    )
 
 
 def read_rels(zip_file: ZipFile, rels_path: str) -> ET.Element:
@@ -62,8 +77,8 @@ def get_relationships_target_by_type(
     """
     return [
         target
-        for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS)
-        if rel.get("Type") == rel_type and (target := rel.get("Target"))
+        for rel in _find_relationships_by_type(rels_element, rel_type)
+        if (target := rel.get("Target"))
     ]
 
 
@@ -82,9 +97,16 @@ def find_relationship_by_type_and_target(
     Returns:
         Relationship ID (rId) if found, None otherwise.
     """
-    for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS):
-        if rel.get("Type") == rel_type and rel.get("Target") == target:
-            return rel.get("Id")
+    rel = rels_element.find(
+        XPATH_RELATIONSHIP_BY_TYPE_AND_TARGET.format(
+            rel_type=rel_type,
+            target=target,
+        ),
+        namespaces=NSMAP_RELS,
+    )
+
+    if rel is not None:
+        return rel.get("Id")
 
     return None
 
@@ -99,16 +121,14 @@ def get_next_rid(rels_element: ET.Element) -> str:
         Next available rId.
     """
     ids = [
-        rel.get("Id")
-        for rel in rels_element.findall(".//r:Relationship", namespaces=NSMAP_RELS)
-        if rel.get("Id") is not None
+        int(rid)
+        for rel in rels_element.findall(
+            XPATH_RELATIONSHIP_WITH_ID,
+            namespaces=NSMAP_RELS,
+        )
+        if (id := rel.get("Id")) and id.startswith("rId") and (rid := id[3:]).isdigit()
     ]
-    nums = [
-        int(rid[3:])
-        for rid in ids
-        if isinstance(rid, str) and rid.startswith("rId") and rid[3:].isdigit()
-    ]
-    return f"rId{max(nums, default=0) + 1}"
+    return f"rId{max(ids, default=0) + 1}"
 
 
 def add_relationship(
