@@ -97,6 +97,20 @@ class PPTXManager(QObject):
         except Exception as e:
             self.errorOccurred.emit(f"Failed to save audio: {e}")
 
+    @Slot(int, str)
+    def setSlideNotes(self, slide_index: int, notes: str):
+        """Update in-memory notes for a slide in the loaded PPTX workspace."""
+        if self._pptx_file is None:
+            self.errorOccurred.emit("No PPTX file loaded")
+            return
+
+        try:
+            self._pptx_file.set_slide_notes(slide_index, notes)
+        except SlideNotFoundError as e:
+            self.errorOccurred.emit(str(e))
+        except Exception as e:
+            self.errorOccurred.emit(f"Failed to update notes: {e}")
+
     @Slot(str)
     def exportTo(self, output_file_url: str):
         """Export the current PPTX workspace to the selected output path."""
