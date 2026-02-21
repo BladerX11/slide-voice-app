@@ -40,3 +40,6 @@ REL_TYPE_IMAGE = (
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 )
 REL_TYPE_MEDIA = "http://schemas.microsoft.com/office/2007/relationships/media"
+REL_TYPE_THEME = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme"
+)
