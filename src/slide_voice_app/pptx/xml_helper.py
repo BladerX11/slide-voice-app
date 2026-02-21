@@ -2,7 +2,11 @@
 
 import xml.etree.ElementTree as ET
 
-from .namespaces import NAMESPACE_CT
+from .namespaces import NAMESPACE_CT, NSMAP_CT
+from .xpath import (
+    XPATH_CT_DEFAULT_BY_EXTENSION,
+    XPATH_CT_OVERRIDE_BY_PART_NAME,
+)
 
 
 def ensure_child(
@@ -22,11 +26,17 @@ def ensure_child(
     Returns:
         The existing or newly created child element.
     """
-    for child in parent.findall(tag):
-        if attrs and any(child.get(key) != value for key, value in attrs.items()):
-            continue
+    if not attrs:
+        child = parent.find(tag)
 
-        return child
+        if child is not None:
+            return child
+    else:
+        predicates = "".join(f"[@{key}='{value}']" for key, value in attrs.items())
+        child = parent.find(f"{tag}{predicates}")
+
+        if child is not None:
+            return child
 
     return ET.SubElement(parent, tag, attrs or {})
 
@@ -41,9 +51,14 @@ def ensure_content_type_default(
         extension: File extension.
         content_type: MIME content type.
     """
-    for default in root.findall(f"{{{NAMESPACE_CT}}}Default"):
-        if default.get("Extension", "").lower() == extension.lower():
-            return
+    if (
+        root.find(
+            XPATH_CT_DEFAULT_BY_EXTENSION.format(extension=extension),
+            namespaces=NSMAP_CT,
+        )
+        is not None
+    ):
+        return
 
     ET.SubElement(
         root,
@@ -63,9 +78,13 @@ def ensure_content_type_override(
         part_name: Absolute part path (for example: /ppt/slides/slide1.xml).
         content_type: MIME content type for the part.
     """
-    for override in root.findall(f"{{{NAMESPACE_CT}}}Override"):
-        if override.get("PartName") == part_name:
-            return
+    if (
+        root.find(
+            XPATH_CT_OVERRIDE_BY_PART_NAME.format(part_name=part_name),
+            namespaces=NSMAP_CT,
+        )
+    ) is not None:
+        return
 
     ET.SubElement(
         root,

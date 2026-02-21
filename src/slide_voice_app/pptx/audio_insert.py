@@ -15,6 +15,7 @@ from .namespaces import (
     NAMESPACE_P14,
     NAMESPACE_R,
     NAMESPACE_RELS,
+    NSMAP,
     REL_TYPE_AUDIO,
     REL_TYPE_IMAGE,
     REL_TYPE_MEDIA,
@@ -24,6 +25,12 @@ from .rels import (
     find_relationship_by_type_and_target,
 )
 from .xml_helper import ensure_child, ensure_content_type_default
+from .xpath import (
+    XPATH_P_CNVPR_WITH_ID,
+    XPATH_P_CTN_WITH_ID,
+    XPATH_P_SPTGT_WITH_SPID,
+    XPATH_TIMING_CONDS_WITH_DELAY,
+)
 
 DEFAULT_ICON_X = 5730875
 DEFAULT_ICON_Y = 3063875
@@ -120,12 +127,14 @@ def _get_max_shape_id(slide_root: ET.Element) -> int:
     Returns:
         Maximum shape ID found, or 0 if none found.
     """
-    targets = [("cNvPr", "id"), ("spTgt", "spid")]
+    targets = [
+        (XPATH_P_CNVPR_WITH_ID, "id"),
+        (XPATH_P_SPTGT_WITH_SPID, "spid"),
+    ]
     found_ids = [
-        int(val)
-        for tag, attr in targets
-        for elem in slide_root.findall(f".//{{{NAMESPACE_P}}}{tag}[@{attr}]")
-        if (val := elem.get(attr))
+        int(elem.get(attr, ""))
+        for xpath, attr in targets
+        for elem in slide_root.findall(xpath, namespaces=NSMAP)
     ]
 
     return max(found_ids, default=0)
@@ -141,9 +150,8 @@ def _get_max_ctn_id(slide_root: ET.Element) -> int:
         Maximum cTn ID found, or 0 if none found.
     """
     ids = (
-        int(val)
-        for elem in slide_root.findall(f".//{{{NAMESPACE_P}}}cTn[@id]")
-        if (val := elem.get("id")) is not None
+        int(elem.get("id", ""))
+        for elem in slide_root.findall(XPATH_P_CTN_WITH_ID, namespaces=NSMAP)
     )
 
     return max(ids, default=0)
@@ -383,12 +391,9 @@ def _compute_next_delay(cmd_parent: ET.Element) -> int:
     Returns:
         Delay for the next audio command.
     """
-    p = NAMESPACE_P
     max_delay = -1
 
-    for cond in cmd_parent.findall(
-        f".//{{{p}}}par/{{{p}}}cTn/{{{p}}}stCondLst/{{{p}}}cond[@delay]"
-    ):
+    for cond in cmd_parent.findall(XPATH_TIMING_CONDS_WITH_DELAY, namespaces=NSMAP):
         s = cond.get("delay", "")
 
         if s.isdigit():

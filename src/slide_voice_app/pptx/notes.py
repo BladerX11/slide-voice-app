@@ -22,6 +22,13 @@ from .rels import (
     read_rels_path,
 )
 from .xml_helper import ensure_child, ensure_content_type_override
+from .xpath import (
+    XPATH_NOTES_MASTER_ID_WITH_RID,
+    XPATH_NOTES_BODY_SHAPES,
+    XPATH_PARAGRAPH_TEXT,
+    XPATH_SHAPE_PARAGRAPHS,
+    XPATH_TXBODY_PARAGRAPHS,
+)
 
 CONTENT_TYPE_NOTES_MASTER = (
     "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"
@@ -45,10 +52,10 @@ def _extract_paragraphs(shape_element: ET.Element) -> list[str]:
         List of paragraph strings.
     """
     paragraphs = []
-    p_elements = shape_element.findall(".//a:p", namespaces=NSMAP)
+    p_elements = shape_element.findall(XPATH_SHAPE_PARAGRAPHS, namespaces=NSMAP)
 
     for p_elem in p_elements:
-        text_elements = p_elem.findall(".//a:t", namespaces=NSMAP)
+        text_elements = p_elem.findall(XPATH_PARAGRAPH_TEXT, namespaces=NSMAP)
         para_text = "".join((t.text or "") for t in text_elements)
         paragraphs.append(para_text)
 
@@ -68,10 +75,7 @@ def extract_notes_text(notes_element: ET.Element) -> str:
     """
     paragraphs = []
 
-    for shape in notes_element.findall(".//p:sp", namespaces=NSMAP):
-        if not shape.findall(".//p:ph[@type='body']", namespaces=NSMAP):
-            continue
-
+    for shape in notes_element.findall(XPATH_NOTES_BODY_SHAPES, namespaces=NSMAP):
         paragraphs.extend(_extract_paragraphs(shape))
 
     return "\n".join(paragraphs)
@@ -84,19 +88,14 @@ def _set_notes_text(notes_root: ET.Element, text: str) -> None:
         notes_root: Parsed notes slide root element.
         text: Plain notes text where paragraphs are separated by newlines.
     """
-    body_shape = None
-
-    for shape in notes_root.findall(".//p:sp", namespaces=NSMAP):
-        if shape.find(".//p:ph[@type='body']", namespaces=NSMAP) is not None:
-            body_shape = shape
-            break
+    body_shape = notes_root.find(XPATH_NOTES_BODY_SHAPES, namespaces=NSMAP)
 
     if body_shape is None:
         return
 
     tx_body = ensure_child(body_shape, f"{{{NAMESPACE_P}}}txBody")
 
-    for paragraph in tx_body.findall("a:p", namespaces=NSMAP):
+    for paragraph in tx_body.findall(XPATH_TXBODY_PARAGRAPHS, namespaces=NSMAP):
         tx_body.remove(paragraph)
 
     paragraphs = text.split("\n") if text else [""]
@@ -392,12 +391,13 @@ def _ensure_notes_master(work_dir: Path) -> str:
     }
 
     notes_master_id = presentation_root.find(
-        ".//p:notesMasterId[@r:id]", namespaces=NSMAP
+        XPATH_NOTES_MASTER_ID_WITH_RID, namespaces=NSMAP
     )
 
     if notes_master_id is not None:
         notes_master_rid = notes_master_id.get(f"{{{NAMESPACE_R}}}id")
-        assert notes_master_rid is not None
+        # Xpath only finds elements with r:id attribute
+        assert notes_master_rid
         notes_master_target = notes_master_rels[notes_master_rid]
     else:
         if notes_master_rels:
