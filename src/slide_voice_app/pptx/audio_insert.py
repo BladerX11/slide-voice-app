@@ -23,6 +23,7 @@ from .rels import (
     add_relationship,
     find_relationship_by_type_and_target,
 )
+from .xml_helper import ensure_child, ensure_content_type_default
 
 DEFAULT_ICON_X = 5730875
 DEFAULT_ICON_Y = 3063875
@@ -108,28 +109,6 @@ def _find_existing_media_by_hash(
             return name
 
     return None
-
-
-def _ensure_content_type_default(
-    root: ET.Element, extension: str, content_type: str
-) -> None:
-    """Add a Default entry to [Content_Types].xml if not present.
-
-    Args:
-        root: Root element of [Content_Types].xml.
-        extension: File extension.
-        content_type: MIME content type.
-    """
-    for default in root.findall(f"{{{NAMESPACE_CT}}}Default"):
-        if default.get("Extension", "").lower() == extension.lower():
-            return
-
-    ET.SubElement(
-        root,
-        f"{{{NAMESPACE_CT}}}Default",
-        Extension=extension,
-        ContentType=content_type,
-    )
 
 
 def _get_max_shape_id(slide_root: ET.Element) -> int:
@@ -258,32 +237,6 @@ def _create_pic_element(
     return pic
 
 
-def _ensure_child(
-    parent: ET.Element, tag: str, attrs: dict[str, str] | None = None
-) -> ET.Element:
-    """Find or create a child element with matching attributes.
-
-    Searches for the first child element with the given tag where all
-    specified attributes match. If no match is found, creates a new
-    child element with the given tag and attributes.
-
-    Args:
-        parent: Parent element to search under.
-        tag: Fully-qualified tag name.
-        attrs: Attributes to match and use when creating a new element.
-
-    Returns:
-        The existing or newly created child element.
-    """
-    for child in parent.findall(tag):
-        if attrs and any(child.get(key) != value for key, value in attrs.items()):
-            continue
-
-        return child
-
-    return ET.SubElement(parent, tag, attrs or {})
-
-
 def _get_common_timing_prefix(slide_root: ET.Element) -> ET.Element:
     """Ensure timing prefix exists and return the root childTnLst.
 
@@ -296,10 +249,10 @@ def _get_common_timing_prefix(slide_root: ET.Element) -> ET.Element:
         The childTnLst element for appending audio nodes.
     """
     p = NAMESPACE_P
-    timing = _ensure_child(slide_root, f"{{{p}}}timing", {})
-    tn_lst = _ensure_child(timing, f"{{{p}}}tnLst", {})
-    par = _ensure_child(tn_lst, f"{{{p}}}par", {})
-    c_tn_root = _ensure_child(
+    timing = ensure_child(slide_root, f"{{{p}}}timing", {})
+    tn_lst = ensure_child(timing, f"{{{p}}}tnLst", {})
+    par = ensure_child(tn_lst, f"{{{p}}}par", {})
+    c_tn_root = ensure_child(
         par,
         f"{{{p}}}cTn",
         {
@@ -313,7 +266,7 @@ def _get_common_timing_prefix(slide_root: ET.Element) -> ET.Element:
         max_id = _get_max_ctn_id(slide_root)
         c_tn_root.set("id", str(max_id + 1))
 
-    child_tn_lst = _ensure_child(c_tn_root, f"{{{p}}}childTnLst", {})
+    child_tn_lst = ensure_child(c_tn_root, f"{{{p}}}childTnLst", {})
 
     return child_tn_lst
 
@@ -333,12 +286,12 @@ def _get_or_create_command_parent(slide_root: ET.Element) -> ET.Element:
     p = NAMESPACE_P
     root_child_tn_lst = _get_common_timing_prefix(slide_root)
 
-    seq = _ensure_child(
+    seq = ensure_child(
         root_child_tn_lst,
         f"{{{p}}}seq",
         {"concurrent": "1", "nextAc": "seek"},
     )
-    c_tn_seq = _ensure_child(
+    c_tn_seq = ensure_child(
         seq,
         f"{{{p}}}cTn",
         {"dur": "indefinite", "nodeType": "mainSeq"},
@@ -348,42 +301,42 @@ def _get_or_create_command_parent(slide_root: ET.Element) -> ET.Element:
         max_id = _get_max_ctn_id(slide_root)
         c_tn_seq.set("id", str(max_id + 1))
 
-    child_tn_lst = _ensure_child(c_tn_seq, f"{{{p}}}childTnLst", {})
-    par = _ensure_child(child_tn_lst, f"{{{p}}}par", {})
-    c_tn_inner = _ensure_child(par, f"{{{p}}}cTn", {"fill": "hold"})
+    child_tn_lst = ensure_child(c_tn_seq, f"{{{p}}}childTnLst", {})
+    par = ensure_child(child_tn_lst, f"{{{p}}}par", {})
+    c_tn_inner = ensure_child(par, f"{{{p}}}cTn", {"fill": "hold"})
 
     if c_tn_inner.get("id") is None:
         max_id = _get_max_ctn_id(slide_root)
         c_tn_inner.set("id", str(max_id + 1))
 
-    st_cond_lst = _ensure_child(c_tn_inner, f"{{{p}}}stCondLst", {})
-    _ensure_child(st_cond_lst, f"{{{p}}}cond", {"delay": "indefinite"})
-    cond_on_begin = _ensure_child(
+    st_cond_lst = ensure_child(c_tn_inner, f"{{{p}}}stCondLst", {})
+    ensure_child(st_cond_lst, f"{{{p}}}cond", {"delay": "indefinite"})
+    cond_on_begin = ensure_child(
         st_cond_lst,
         f"{{{p}}}cond",
         {"evt": "onBegin", "delay": "0"},
     )
-    _ensure_child(cond_on_begin, f"{{{p}}}tn", {"val": c_tn_seq.get("id", "")})
+    ensure_child(cond_on_begin, f"{{{p}}}tn", {"val": c_tn_seq.get("id", "")})
 
-    command_parent = _ensure_child(c_tn_inner, f"{{{p}}}childTnLst", {})
+    command_parent = ensure_child(c_tn_inner, f"{{{p}}}childTnLst", {})
 
-    prev_cond_lst = _ensure_child(seq, f"{{{p}}}prevCondLst", {})
-    cond_prev = _ensure_child(
+    prev_cond_lst = ensure_child(seq, f"{{{p}}}prevCondLst", {})
+    cond_prev = ensure_child(
         prev_cond_lst,
         f"{{{p}}}cond",
         {"evt": "onPrev", "delay": "0"},
     )
-    tgt_prev = _ensure_child(cond_prev, f"{{{p}}}tgtEl", {})
-    _ensure_child(tgt_prev, f"{{{p}}}sldTgt", {})
+    tgt_prev = ensure_child(cond_prev, f"{{{p}}}tgtEl", {})
+    ensure_child(tgt_prev, f"{{{p}}}sldTgt", {})
 
-    next_cond_lst = _ensure_child(seq, f"{{{p}}}nextCondLst", {})
-    cond_next = _ensure_child(
+    next_cond_lst = ensure_child(seq, f"{{{p}}}nextCondLst", {})
+    cond_next = ensure_child(
         next_cond_lst,
         f"{{{p}}}cond",
         {"evt": "onNext", "delay": "0"},
     )
-    tgt_next = _ensure_child(cond_next, f"{{{p}}}tgtEl", {})
-    _ensure_child(tgt_next, f"{{{p}}}sldTgt", {})
+    tgt_next = ensure_child(cond_next, f"{{{p}}}tgtEl", {})
+    ensure_child(tgt_next, f"{{{p}}}sldTgt", {})
 
     return command_parent
 
@@ -414,8 +367,8 @@ def _get_or_create_pic_parent(slide_root: ET.Element) -> ET.Element:
         The spTree element for appending pic nodes.
     """
     p = NAMESPACE_P
-    c_sld = _ensure_child(slide_root, f"{{{p}}}cSld", {})
-    sp_tree = _ensure_child(c_sld, f"{{{p}}}spTree", {})
+    c_sld = ensure_child(slide_root, f"{{{p}}}cSld", {})
+    sp_tree = ensure_child(c_sld, f"{{{p}}}spTree", {})
     return sp_tree
 
 
@@ -593,8 +546,8 @@ def add_audio_to_slide(
 
     ct_path = work_path / "[Content_Types].xml"
     ct_root = ET.fromstring(ct_path.read_bytes())
-    _ensure_content_type_default(ct_root, "mp3", "audio/mpeg")
-    _ensure_content_type_default(ct_root, "png", "image/png")
+    ensure_content_type_default(ct_root, "mp3", "audio/mpeg")
+    ensure_content_type_default(ct_root, "png", "image/png")
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
     slide_filename = Path(slide_part_path).name
