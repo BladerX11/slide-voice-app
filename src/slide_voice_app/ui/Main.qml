@@ -186,6 +186,7 @@ ApplicationWindow {
                     onTextChanged: {
                         if (activeFocus && slideList.currentIndex >= 0) {
                             slideModel.setProperty(slideList.currentIndex, "notes", text);
+                            PPTXManager.setSlideNotes(slideList.currentIndex, text);
                         }
                     }
                 }
