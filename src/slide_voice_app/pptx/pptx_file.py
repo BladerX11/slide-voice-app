@@ -20,7 +20,7 @@ from .namespaces import (
     REL_TYPE_NOTES_SLIDE,
     REL_TYPE_SLIDE,
 )
-from .notes import extract_notes_text
+from .notes import extract_notes_text, write_slide_notes
 from .rels import get_relationships_target_by_type, read_rels_path
 
 
@@ -48,6 +48,55 @@ def _update_core_xml_modified(core_content: bytes) -> bytes:
     return ET.tostring(root, encoding="UTF-8", xml_declaration=True)
 
 
+def _update_app_xml_notes_count(app_content: bytes, notes_count: int) -> bytes:
+    """Update Notes count in docProps/app.xml.
+
+    Args:
+        app_content: Raw bytes of docProps/app.xml.
+        notes_count: Number of slides with notes slides.
+
+    Returns:
+        Updated XML bytes.
+    """
+    namespace = (
+        "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+    )
+    root = ET.fromstring(app_content)
+    notes = root.find(f"{{{namespace}}}Notes")
+
+    if notes is None:
+        notes = ET.SubElement(root, f"{{{namespace}}}Notes")
+
+    notes.text = str(notes_count)
+
+    return ET.tostring(root, encoding="UTF-8", xml_declaration=True)
+
+
+def _count_slides_with_notes(work_dir: Path) -> int:
+    """Count slides that reference a notesSlide relationship.
+
+    Args:
+        work_dir: Extracted PPTX workspace root.
+
+    Returns:
+        Number of slides with notes relationships.
+    """
+    rels_dir = work_dir / "ppt/slides/_rels"
+
+    if not rels_dir.exists():
+        return 0
+
+    count = 0
+
+    for rels_path in rels_dir.glob("slide*.xml.rels"):
+        rels_root = ET.fromstring(rels_path.read_bytes())
+
+        if get_relationships_target_by_type(rels_root, REL_TYPE_NOTES_SLIDE):
+            count += 1
+
+    return count
+
+
 class Slide:
     """Slide model backed by an extracted PPTX workspace."""
 
@@ -62,9 +111,34 @@ class Slide:
         self.index = index
         self.slide_part_path = slide_part_path
         self._work_dir = work_dir
+        self._notes = self._read_notes()
+        self.notes_changed = False
 
-    def get_notes(self) -> str:
-        """Get notes text for this slide.
+    @property
+    def notes(self) -> str:
+        """Get current in-memory notes text for this slide."""
+        return self._notes
+
+    def set_notes(self, text: str) -> None:
+        """Update in-memory notes text and mark slide as changed.
+
+        Args:
+            text: New plain text notes.
+        """
+        if text != self._notes:
+            self._notes = text
+            self.notes_changed = True
+
+    def save_notes(self) -> None:
+        """Persist notes to workspace if slide notes were edited."""
+        if not self.notes_changed:
+            return
+
+        write_slide_notes(self._work_dir, self.slide_part_path, self._notes)
+        self.notes_changed = False
+
+    def _read_notes(self) -> str:
+        """Read notes text from extracted workspace files.
 
         Returns:
             Notes text as plain string.
@@ -221,7 +295,25 @@ class PptxFile:
             RelsNotFoundError: If a slide relationships file is missing.
             NotesNotFoundError: If a notes part cannot be read for a slide.
         """
-        return [slide.get_notes() for slide in self.slides]
+        return [slide.notes for slide in self.slides]
+
+    def set_slide_notes(self, slide_index: int, notes: str) -> None:
+        """Update in-memory notes for a single slide.
+
+        Args:
+            slide_index: Zero-based slide index.
+            notes: Plain text notes.
+
+        Raises:
+            SlideNotFoundError: If slide index is out of range.
+        """
+        slide = self._get_slide(slide_index)
+        slide.set_notes(notes)
+
+    def save_notes(self) -> None:
+        """Persist edited slide notes back into the workspace files."""
+        for slide in self.slides:
+            slide.save_notes()
 
     def save_audio_for_slide(self, slide_index: int, mp3_path: Path) -> None:
         """Insert audio into a slide.
@@ -245,10 +337,16 @@ class PptxFile:
         Args:
             output_path: Destination .pptx path.
         """
-        core_path = self._work_dir / "docProps/core.xml"
+        self.save_notes()
 
-        if core_path.exists():
-            core_path.write_bytes(_update_core_xml_modified(core_path.read_bytes()))
+        core_path = self._work_dir / "docProps/core.xml"
+        core_path.write_bytes(_update_core_xml_modified(core_path.read_bytes()))
+
+        app_path = self._work_dir / "docProps/app.xml"
+        notes_count = _count_slides_with_notes(self._work_dir)
+        app_path.write_bytes(
+            _update_app_xml_notes_count(app_path.read_bytes(), notes_count)
+        )
 
         with ZipFile(output_path, "w", ZIP_DEFLATED) as zip_file:
             for file_path in self._work_dir.rglob("*"):
