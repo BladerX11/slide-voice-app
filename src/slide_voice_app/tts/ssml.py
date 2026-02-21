@@ -51,9 +51,9 @@ class VoiceRule(SSMLRule):
 
 
 class BreakRule(SSMLRule):
-    """Convert dot runs surrounded by spaces to <break> tags."""
+    """Convert tilde runs surrounded by spaces to <break> tags."""
 
-    _pattern = re.compile(r"(?<!\S)\.+(?!\S)")
+    _pattern = re.compile(r"(?<!\S)~+(?!\S)")
 
     @override
     @classmethod

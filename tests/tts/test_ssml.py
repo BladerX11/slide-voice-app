@@ -6,12 +6,12 @@ from slide_voice_app.tts.ssml import SSMLProcessor
 @pytest.mark.parametrize(
     "input_text, expected",
     [
-        # Period next to words ignored, around spaces processed
-        ("Hello. .. .World", '<speak>Hello. <break time="1.0s"/> .World</speak>'),
-        # Period start/end of string
-        (".", '<speak><break time="0.5s"/></speak>'),
-        # Period start/end of paragraph
-        ("\n.\n", '<speak>\n<break time="0.5s"/>\n</speak>'),
+        # Tilde next to words ignored, around spaces processed
+        ("Hello~ ~~ ~World", '<speak>Hello~ <break time="1.0s"/> ~World</speak>'),
+        # Tilde start/end of string
+        ("~", '<speak><break time="0.5s"/></speak>'),
+        # Tilde start/end of paragraph
+        ("\n~\n", '<speak>\n<break time="0.5s"/>\n</speak>'),
         # Inner underscore ignored, outer underscores processed
         (
             "check _my_variable_ value",
@@ -33,18 +33,13 @@ from slide_voice_app.tts.ssml import SSMLProcessor
         ),
         # Combined
         (
-            "[en-US-Wavenet-D] _Hi_ there ..",
+            "[en-US-Wavenet-D] _Hi_ there ~~",
             '<speak><voice name="en-US-Wavenet-D"> <emphasis level="strong">Hi</emphasis> there <break time="1.0s"/></voice></speak>',
         ),
         # Escape XML special characters in content
         (
-            "R&D Department <sales@example.com>",
-            "<speak>R&amp;D Department &lt;sales@example.com&gt;</speak>",
-        ),
-        # Escape quotes in voice name
-        (
-            '[en-US-Wavenet-D" malicious]Hello there.',
-            '<speak><voice name="en-US-Wavenet-D&quot; malicious">Hello there.</voice></speak>',
+            '[en-US-Wavenet-D" malicious]R&D Department <sales@example.com>',
+            '<speak><voice name="en-US-Wavenet-D&quot; malicious">R&amp;D Department &lt;sales@example.com&gt;</voice></speak>',
         ),
     ],
 )
