@@ -3,6 +3,7 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from .exceptions import InvalidPptxError, RelationshipIdNotFoundError
 from .namespaces import (
     NAMESPACE_A,
     NAMESPACE_CT,
@@ -231,13 +232,24 @@ def _create_theme2(work_dir: Path) -> None:
 
     Args:
         work_dir: Extracted PPTX workspace root directory.
+
+    Raises:
+        InvalidPptxError: If `ppt/theme/theme1.xml` is missing.
     """
     theme2_path = work_dir / THEME2_PATH
 
     if theme2_path.exists():
         return
 
-    theme1_path = work_dir / "ppt/theme/theme1.xml"
+    theme1_rel_path = "ppt/theme/theme1.xml"
+    theme1_path = work_dir / theme1_rel_path
+
+    if not theme1_path.exists():
+        raise InvalidPptxError(
+            theme1_rel_path,
+            "Required theme part is missing; cannot create theme2.xml",
+        )
+
     theme2_path.parent.mkdir(parents=True, exist_ok=True)
     theme2_path.write_bytes(theme1_path.read_bytes())
 
@@ -271,6 +283,9 @@ def _ensure_notes_master_files(work_dir: Path, notes_master_path: str) -> str:
 
     Returns:
         Theme path for notes master.
+
+    Raises:
+        InvalidPptxError: If `ppt/theme/theme1.xml` is missing.
     """
     notes_master_file_path = work_dir / notes_master_path
     notes_master_rels_path = work_dir / rels_path_for_path(notes_master_path)
@@ -342,7 +357,10 @@ def _ensure_notes_master(work_dir: Path) -> str:
         Notes master package path.
 
     Raises:
+        InvalidPptxError: If `ppt/theme/theme1.xml` is missing.
         RelsNotFoundError: If the presentation relationships file is missing.
+        RelationshipIdNotFoundError: If `notesMasterId/@r:id` has no matching
+            relationship entry in presentation relationships.
     """
     presentation_path = work_dir / "ppt/presentation.xml"
     presentation_root = ET.fromstring(presentation_path.read_bytes())
@@ -370,7 +388,12 @@ def _ensure_notes_master(work_dir: Path) -> str:
         notes_master_rid = notes_master_id.get(f"{{{NAMESPACE_R}}}id")
         # Xpath only finds elements with r:id attribute
         assert notes_master_rid
-        notes_master_target = notes_master_rels[notes_master_rid]
+        notes_master_target = notes_master_rels.get(notes_master_rid)
+
+        if notes_master_target is None:
+            raise RelationshipIdNotFoundError(
+                "ppt/_rels/presentation.xml.rels", notes_master_rid
+            )
     else:
         if notes_master_rels:
             notes_master_rid, notes_master_target = next(
@@ -416,6 +439,11 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
         text: Plain notes text where paragraphs are separated by newlines.
 
     Raises:
+        FileNotFoundError: If a relationship target path resolves to a missing
+            notes XML file.
+        InvalidPptxError: If `ppt/theme/theme1.xml` is missing.
+        RelationshipIdNotFoundError: If `notesMasterId/@r:id` has no matching
+            relationship entry in presentation relationships.
         RelsNotFoundError: If a required slide, presentation, or notes-master
             relationship file is missing.
     """
@@ -432,6 +460,12 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
     if notes_targets:
         notes_xml_path = resolve_target_path(slide_path, notes_targets[0])
         notes_path = work_dir / notes_xml_path
+
+        if not notes_path.exists():
+            raise FileNotFoundError(
+                f"Notes relationship target does not exist: '{notes_xml_path}'"
+            )
+
         notes_root = ET.fromstring(notes_path.read_bytes())
         _set_notes_text(notes_root, text)
         notes_path.write_bytes(

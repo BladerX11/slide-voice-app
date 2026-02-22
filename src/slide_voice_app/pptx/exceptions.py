@@ -36,13 +36,15 @@ class InvalidPptxError(PptxError):
         super().__init__(f"Invalid PPTX file '{path}': {reason}")
 
 
-class RelationshipNotFoundError(PptxError):
-    """Raised when a required relationship is not found."""
+class RelationshipIdNotFoundError(PptxError):
+    """Raised when a required relationship ID is not found."""
 
-    def __init__(self, source: str, rel_type: str) -> None:
+    def __init__(self, source: str, rid: str) -> None:
         self.source = source
-        self.rel_type = rel_type
-        super().__init__(f"Relationship of type '{rel_type}' not found in '{source}'.")
+        self.rid = rid
+        super().__init__(
+            f"Relationship ID '{rid}' not found in relationships source '{source}'."
+        )
 
 
 class RelsNotFoundError(PptxError):
