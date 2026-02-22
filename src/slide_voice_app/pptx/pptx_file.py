@@ -1,6 +1,5 @@
 """Central PPTX file model with slide-level operations."""
 
-import posixpath
 import tempfile
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -21,6 +20,7 @@ from .namespaces import (
     REL_TYPE_SLIDE,
 )
 from .notes import extract_notes_text, write_slide_notes
+from .paths import resolve_target_path, slide_rels_path
 from .rels import get_relationships_target_by_type, read_rels_path
 
 
@@ -100,16 +100,16 @@ def _count_slides_with_notes(work_dir: Path) -> int:
 class Slide:
     """Slide model backed by an extracted PPTX workspace."""
 
-    def __init__(self, index: int, slide_part_path: str, work_dir: Path):
+    def __init__(self, index: int, slide_path: str, work_dir: Path):
         """Initialize a Slide.
 
         Args:
             index: Zero-based slide index.
-            slide_part_path: OOXML part path (e.g. ppt/slides/slide1.xml).
+            slide_path: OOXML path (e.g. ppt/slides/slide1.xml).
             work_dir: Extracted PPTX workspace directory.
         """
         self.index = index
-        self.slide_part_path = slide_part_path
+        self.slide_path = slide_path
         self._work_dir = work_dir
         self._notes = self._read_notes()
         self.notes_changed = False
@@ -134,7 +134,7 @@ class Slide:
         if not self.notes_changed:
             return
 
-        write_slide_notes(self._work_dir, self.slide_part_path, self._notes)
+        write_slide_notes(self._work_dir, self.slide_path, self._notes)
         self.notes_changed = False
 
     def _read_notes(self) -> str:
@@ -145,11 +145,10 @@ class Slide:
 
         Raises:
             RelsNotFoundError: If slide relationships are missing.
-            NotesNotFoundError: If notes part target cannot be read.
+            NotesNotFoundError: If notes path target cannot be read.
         """
-        slide_filename = Path(self.slide_part_path).name
-        slide_rels_path = self._work_dir / "ppt/slides/_rels" / f"{slide_filename}.rels"
-        slide_rels = read_rels_path(slide_rels_path)
+        rels_path = slide_rels_path(self._work_dir, self.slide_path)
+        slide_rels = read_rels_path(rels_path)
 
         if not (
             notes_targets := get_relationships_target_by_type(
@@ -159,10 +158,8 @@ class Slide:
             return ""
 
         notes_target = notes_targets[0]
-        notes_part_path = posixpath.normpath(
-            posixpath.join(posixpath.dirname(self.slide_part_path), notes_target)
-        )
-        notes_path = self._work_dir / notes_part_path
+        notes_xml_path = resolve_target_path(self.slide_path, notes_target)
+        notes_path = self._work_dir / notes_xml_path
 
         try:
             notes_element = ET.fromstring(notes_path.read_bytes())
@@ -180,7 +177,7 @@ class Slide:
         Raises:
             FileNotFoundError: If workspace, slide, or MP3 file is missing.
         """
-        add_audio_to_slide(self._work_dir, self.slide_part_path, mp3_path)
+        add_audio_to_slide(self._work_dir, self.slide_path, mp3_path)
 
 
 class PptxFile:
@@ -250,7 +247,7 @@ class PptxFile:
         return len(self.slides)
 
     def _load_slides(self) -> None:
-        """Load ordered slide part paths and instantiate Slide objects.
+        """Load ordered slide paths and instantiate Slide objects.
 
         Raises:
             RelsNotFoundError: If presentation relationships are missing.
@@ -261,14 +258,14 @@ class PptxFile:
         indexed_paths: list[tuple[int, str]] = []
 
         for target in targets:
-            slide_part_path = f"ppt/{target}"
-            slide_num = int(slide_part_path.split("slide")[-1].replace(".xml", ""))
-            indexed_paths.append((slide_num, slide_part_path))
+            slide_path = resolve_target_path("ppt/presentation.xml", target)
+            slide_num = int(slide_path.split("slide")[-1].replace(".xml", ""))
+            indexed_paths.append((slide_num, slide_path))
 
         indexed_paths.sort(key=lambda item: item[0])
         self.slides = [
-            Slide(index=index, slide_part_path=slide_part_path, work_dir=self._work_dir)
-            for index, (_, slide_part_path) in enumerate(indexed_paths)
+            Slide(index=index, slide_path=slide_path, work_dir=self._work_dir)
+            for index, (_, slide_path) in enumerate(indexed_paths)
         ]
 
     def _get_slide(self, slide_index: int) -> Slide:
@@ -293,7 +290,7 @@ class PptxFile:
 
         Raises:
             RelsNotFoundError: If a slide relationships file is missing.
-            NotesNotFoundError: If a notes part cannot be read for a slide.
+            NotesNotFoundError: If a notes path cannot be read for a slide.
         """
         return [slide.notes for slide in self.slides]
 

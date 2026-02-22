@@ -1,6 +1,5 @@
 """Notes extraction and write support for PPTX slides."""
 
-import posixpath
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -15,6 +14,12 @@ from .namespaces import (
     REL_TYPE_NOTES_SLIDE,
     REL_TYPE_THEME,
 )
+from .paths import (
+    relative_target_path,
+    rels_path_for_path,
+    resolve_target_path,
+    slide_rels_path,
+)
 from .rels import (
     add_relationship,
     find_relationship_by_type_and_target,
@@ -23,8 +28,8 @@ from .rels import (
 )
 from .xml_helper import ensure_child, ensure_content_type_override
 from .xpath import (
-    XPATH_NOTES_MASTER_ID_WITH_RID,
     XPATH_NOTES_BODY_SHAPES,
+    XPATH_NOTES_MASTER_ID_WITH_RID,
     XPATH_PARAGRAPH_TEXT,
     XPATH_SHAPE_PARAGRAPHS,
     XPATH_TXBODY_PARAGRAPHS,
@@ -38,8 +43,8 @@ CONTENT_TYPE_NOTES_SLIDE = (
 )
 CONTENT_TYPE_THEME = "application/vnd.openxmlformats-officedocument.theme+xml"
 
-NOTES_MASTER_PART = "ppt/notesMasters/notesMaster1.xml"
-THEME2_PART = "ppt/theme/theme2.xml"
+NOTES_MASTER_PATH = "ppt/notesMasters/notesMaster1.xml"
+THEME2_PATH = "ppt/theme/theme2.xml"
 
 
 def _extract_paragraphs(shape_element: ET.Element) -> list[str]:
@@ -108,16 +113,16 @@ def _set_notes_text(notes_root: ET.Element, text: str) -> None:
             ET.SubElement(run, f"{{{NAMESPACE_A}}}t").text = paragraph_text
 
 
-def _notes_filename_for_slide(slide_part_path: str) -> str:
-    """Build notes filename for a slide part path.
+def _notes_filename_for_slide(slide_path: str) -> str:
+    """Build notes filename for a slide path.
 
     Args:
-        slide_part_path: Slide OOXML part path.
+        slide_path: Slide OOXML path.
 
     Returns:
         Notes slide filename.
     """
-    slide_stem = Path(slide_part_path).stem
+    slide_stem = Path(slide_path).stem
     suffix = slide_stem.replace("slide", "")
     return f"notesSlide{suffix}.xml"
 
@@ -227,7 +232,7 @@ def _create_theme2(work_dir: Path) -> None:
     Args:
         work_dir: Extracted PPTX workspace root directory.
     """
-    theme2_path = work_dir / THEME2_PART
+    theme2_path = work_dir / THEME2_PATH
 
     if theme2_path.exists():
         return
@@ -237,64 +242,44 @@ def _create_theme2(work_dir: Path) -> None:
     theme2_path.write_bytes(theme1_path.read_bytes())
 
 
-def _rels_part_for_part(part: str) -> str:
-    """Build relationship part path for a package part.
-
-    Args:
-        part: Package part path.
-
-    Returns:
-        Relationship part path under the part's `_rels` directory.
-    """
-    part_dir = posixpath.dirname(part)
-    part_name = posixpath.basename(part)
-    return posixpath.join(part_dir, "_rels", f"{part_name}.rels")
-
-
-def _find_theme_part_for_notes_master_rels(
-    notes_master_part: str, notes_master_rels: ET.Element
+def _find_theme_path_for_notes_master_rels(
+    notes_master_path: str, notes_master_rels: ET.Element
 ) -> str | None:
-    """Return the first theme part linked from notes master relationships.
+    """Return the first theme path linked from notes master relationships.
 
     Args:
-        notes_master_part: Notes-master part path in the package.
+        notes_master_path: Notes-master path in the package.
         notes_master_rels: Parsed notes-master relationships XML element.
 
     Returns:
-        Normalized theme part path if found; otherwise `None`.
+        Normalized theme path if found; otherwise `None`.
     """
-    notes_master_dir = posixpath.dirname(notes_master_part)
-
     for theme_target in get_relationships_target_by_type(
         notes_master_rels, REL_TYPE_THEME
     ):
-        theme_part = posixpath.normpath(
-            posixpath.join(notes_master_dir, theme_target.lstrip("/"))
-        )
-
-        return theme_part
+        return resolve_target_path(notes_master_path, theme_target)
 
     return None
 
 
-def _ensure_notes_master_parts(work_dir: Path, notes_master_part: str) -> str:
-    """Create default notes master part, theme rels and theme if missing.
+def _ensure_notes_master_files(work_dir: Path, notes_master_path: str) -> str:
+    """Create default notes master file, theme rels, and theme if missing.
 
     Args:
         work_dir: Extracted PPTX workspace root directory.
-        notes_master_part: Notes master part path in package.
+        notes_master_path: Notes master path in package.
 
     Returns:
-        Theme part path for notes master.
+        Theme path for notes master.
     """
-    notes_master_path = work_dir / notes_master_part
-    notes_master_rels_path = work_dir / _rels_part_for_part(notes_master_part)
-    notes_master_path.parent.mkdir(parents=True, exist_ok=True)
+    notes_master_file_path = work_dir / notes_master_path
+    notes_master_rels_path = work_dir / rels_path_for_path(notes_master_path)
+    notes_master_file_path.parent.mkdir(parents=True, exist_ok=True)
     notes_master_rels_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if not notes_master_path.exists():
+    if not notes_master_file_path.exists():
         notes_master_root = _create_notes_master_xml()
-        notes_master_path.write_bytes(
+        notes_master_file_path.write_bytes(
             ET.tostring(notes_master_root, encoding="UTF-8", xml_declaration=True)
         )
 
@@ -303,22 +288,21 @@ def _ensure_notes_master_parts(work_dir: Path, notes_master_part: str) -> str:
     else:
         notes_master_rels = ET.Element(f"{{{NAMESPACE_RELS}}}Relationships")
 
-    theme_part = _find_theme_part_for_notes_master_rels(
-        notes_master_part, notes_master_rels
+    theme_path = _find_theme_path_for_notes_master_rels(
+        notes_master_path, notes_master_rels
     )
 
-    if theme_part is None:
+    if theme_path is None:
         _create_theme2(work_dir)
-        notes_master_dir = posixpath.dirname(notes_master_part)
-        theme_target = posixpath.relpath(THEME2_PART, notes_master_dir)
+        theme_target = relative_target_path(notes_master_path, THEME2_PATH)
         add_relationship(notes_master_rels, REL_TYPE_THEME, theme_target)
-        theme_part = THEME2_PART
+        theme_path = THEME2_PATH
         ET.register_namespace("", NAMESPACE_RELS)
         notes_master_rels_path.write_bytes(
             ET.tostring(notes_master_rels, encoding="UTF-8", xml_declaration=True)
         )
 
-    return theme_part
+    return theme_path
 
 
 def _append_notes_master_id(presentation_root: ET.Element, rid: str) -> None:
@@ -348,29 +332,17 @@ def _append_notes_master_id(presentation_root: ET.Element, rid: str) -> None:
     notes_master_id.set(f"{{{NAMESPACE_R}}}id", rid)
 
 
-def _part_from_presentation_target(target: str) -> str:
-    """Resolve a presentation relationship target to a package part path.
-
-    Args:
-        target: Relationship target from `ppt/_rels/presentation.xml.rels`.
-
-    Returns:
-        Normalized package part path rooted at `ppt/`.
-    """
-    return posixpath.normpath(posixpath.join("ppt", target.lstrip("/")))
-
-
 def _ensure_notes_master(work_dir: Path) -> str:
-    """Ensure notes master parts and relationships exist.
+    """Ensure notes master files and relationships exist.
 
     Args:
         work_dir: Extracted PPTX workspace root directory.
 
     Returns:
-        Target path usable from notes slide rels to notes master.
+        Notes master package path.
 
     Raises:
-        RelsNotFoundError: If the presentation relationships part is missing.
+        RelsNotFoundError: If the presentation relationships file is missing.
     """
     presentation_path = work_dir / "ppt/presentation.xml"
     presentation_root = ET.fromstring(presentation_path.read_bytes())
@@ -405,7 +377,9 @@ def _ensure_notes_master(work_dir: Path) -> str:
                 iter(notes_master_rels.items())
             )
         else:
-            notes_master_target = posixpath.relpath(NOTES_MASTER_PART, "ppt")
+            notes_master_target = relative_target_path(
+                "ppt/presentation.xml", NOTES_MASTER_PATH
+            )
             notes_master_rid = add_relationship(
                 presentation_rels, REL_TYPE_NOTES_MASTER, notes_master_target
             )
@@ -419,48 +393,45 @@ def _ensure_notes_master(work_dir: Path) -> str:
             ET.tostring(presentation_root, encoding="UTF-8", xml_declaration=True)
         )
 
-    notes_master_part = _part_from_presentation_target(notes_master_target)
-    theme_part = _ensure_notes_master_parts(work_dir, notes_master_part)
+    notes_master_path = resolve_target_path("ppt/presentation.xml", notes_master_target)
+    theme_path = _ensure_notes_master_files(work_dir, notes_master_path)
 
     ct_path = work_dir / "[Content_Types].xml"
     ct_root = ET.fromstring(ct_path.read_bytes())
     ensure_content_type_override(
-        ct_root, f"/{notes_master_part}", CONTENT_TYPE_NOTES_MASTER
+        ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
     )
-    ensure_content_type_override(ct_root, f"/{theme_part}", CONTENT_TYPE_THEME)
+    ensure_content_type_override(ct_root, f"/{theme_path}", CONTENT_TYPE_THEME)
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
-    return posixpath.relpath(notes_master_part, "ppt/notesSlides")
+    return notes_master_path
 
 
-def write_slide_notes(work_dir: Path, slide_part_path: str, text: str) -> None:
-    """Write notes text for a slide, creating notes parts if needed.
+def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
+    """Write notes text for a slide, creating notes files if needed.
 
     Args:
         work_dir: Extracted PPTX workspace root directory.
-        slide_part_path: OOXML part path (for example: ppt/slides/slide1.xml).
+        slide_path: OOXML path (for example: ppt/slides/slide1.xml).
         text: Plain notes text where paragraphs are separated by newlines.
 
     Raises:
         RelsNotFoundError: If a required slide, presentation, or notes-master
-            relationship part is missing.
+            relationship file is missing.
     """
     ET.register_namespace("", NAMESPACE_CT)
     ET.register_namespace("a", NAMESPACE_A)
     ET.register_namespace("p", NAMESPACE_P)
     ET.register_namespace("r", NAMESPACE_R)
 
-    slide_filename = Path(slide_part_path).name
-    slide_rels_path = work_dir / "ppt/slides/_rels" / f"{slide_filename}.rels"
-    slide_rels = read_rels_path(slide_rels_path)
+    rels_path = slide_rels_path(work_dir, slide_path)
+    slide_rels = read_rels_path(rels_path)
 
     notes_targets = get_relationships_target_by_type(slide_rels, REL_TYPE_NOTES_SLIDE)
 
     if notes_targets:
-        notes_part_path = posixpath.normpath(
-            posixpath.join(posixpath.dirname(slide_part_path), notes_targets[0])
-        )
-        notes_path = work_dir / notes_part_path
+        notes_xml_path = resolve_target_path(slide_path, notes_targets[0])
+        notes_path = work_dir / notes_xml_path
         notes_root = ET.fromstring(notes_path.read_bytes())
         _set_notes_text(notes_root, text)
         notes_path.write_bytes(
@@ -468,11 +439,11 @@ def write_slide_notes(work_dir: Path, slide_part_path: str, text: str) -> None:
         )
         return
 
-    notes_master_target = _ensure_notes_master(work_dir)
-    notes_filename = _notes_filename_for_slide(slide_part_path)
-    notes_part_path = f"ppt/notesSlides/{notes_filename}"
+    notes_master_path = _ensure_notes_master(work_dir)
+    notes_filename = _notes_filename_for_slide(slide_path)
+    notes_xml_path = f"ppt/notesSlides/{notes_filename}"
     notes_rels_path = work_dir / "ppt/notesSlides/_rels" / f"{notes_filename}.rels"
-    notes_path = work_dir / notes_part_path
+    notes_path = work_dir / notes_xml_path
 
     notes_path.parent.mkdir(parents=True, exist_ok=True)
     notes_rels_path.parent.mkdir(parents=True, exist_ok=True)
@@ -483,8 +454,9 @@ def write_slide_notes(work_dir: Path, slide_part_path: str, text: str) -> None:
     )
 
     notes_rels_root = ET.Element(f"{{{NAMESPACE_RELS}}}Relationships")
+    notes_master_target = relative_target_path(notes_xml_path, notes_master_path)
     add_relationship(notes_rels_root, REL_TYPE_NOTES_MASTER, notes_master_target)
-    slide_target = f"../slides/{slide_filename}"
+    slide_target = relative_target_path(notes_xml_path, slide_path)
     add_relationship(
         notes_rels_root,
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
@@ -495,9 +467,9 @@ def write_slide_notes(work_dir: Path, slide_part_path: str, text: str) -> None:
         ET.tostring(notes_rels_root, encoding="UTF-8", xml_declaration=True)
     )
 
-    notes_target_from_slide = f"../notesSlides/{notes_filename}"
+    notes_target_from_slide = relative_target_path(slide_path, notes_xml_path)
     add_relationship(slide_rels, REL_TYPE_NOTES_SLIDE, notes_target_from_slide)
-    slide_rels_path.write_bytes(
+    rels_path.write_bytes(
         ET.tostring(slide_rels, encoding="UTF-8", xml_declaration=True)
     )
 
@@ -506,10 +478,7 @@ def write_slide_notes(work_dir: Path, slide_part_path: str, text: str) -> None:
     ensure_content_type_override(
         ct_root, f"/ppt/notesSlides/{notes_filename}", CONTENT_TYPE_NOTES_SLIDE
     )
-    notes_master_part_path = posixpath.normpath(
-        posixpath.join("ppt/notesSlides", notes_master_target)
-    )
     ensure_content_type_override(
-        ct_root, f"/{notes_master_part_path}", CONTENT_TYPE_NOTES_MASTER
+        ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
     )
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
