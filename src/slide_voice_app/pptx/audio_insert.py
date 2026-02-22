@@ -20,6 +20,7 @@ from .namespaces import (
     REL_TYPE_IMAGE,
     REL_TYPE_MEDIA,
 )
+from .paths import slide_rels_path
 from .rels import (
     add_relationship,
     find_relationship_by_type_and_target,
@@ -496,14 +497,14 @@ def _create_audio_node(
 
 def add_audio_to_slide(
     work_path: Path,
-    slide_part_path: str,
+    slide_path: str,
     mp3_path: Path,
 ) -> None:
     """Insert audio into an extracted slide workspace.
 
     Args:
         work_path: Extracted PPTX workspace root directory.
-        slide_part_path: OOXML slide path (e.g. ppt/slides/slide1.xml).
+        slide_path: OOXML slide path (e.g. ppt/slides/slide1.xml).
         mp3_path: Path to the MP3 audio file to insert.
 
     Raises:
@@ -527,10 +528,10 @@ def add_audio_to_slide(
     ET.register_namespace("p14", NAMESPACE_P14)
     ET.register_namespace("a16", NAMESPACE_A16)
 
-    slide_path = work_path / slide_part_path
+    slide_file_path = work_path / slide_path
 
-    if not slide_path.exists():
-        raise FileNotFoundError(f"Slide not found in workspace: {slide_part_path}")
+    if not slide_file_path.exists():
+        raise FileNotFoundError(f"Slide not found in workspace: {slide_path}")
 
     media_dir = work_path / "ppt/media"
     media_dir.mkdir(parents=True, exist_ok=True)
@@ -555,13 +556,11 @@ def add_audio_to_slide(
     ensure_content_type_default(ct_root, "png", "image/png")
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
-    slide_filename = Path(slide_part_path).name
-    rels_dir = work_path / "ppt/slides/_rels"
-    rels_dir.mkdir(parents=True, exist_ok=True)
-    slide_rels_path = rels_dir / f"{slide_filename}.rels"
+    rels_path = slide_rels_path(work_path, slide_path)
+    rels_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if slide_rels_path.exists():
-        rels_root = ET.fromstring(slide_rels_path.read_bytes())
+    if rels_path.exists():
+        rels_root = ET.fromstring(rels_path.read_bytes())
     else:
         rels_root = ET.Element(f"{{{NAMESPACE_RELS}}}Relationships")
 
@@ -588,11 +587,11 @@ def add_audio_to_slide(
         image_rid = add_relationship(rels_root, REL_TYPE_IMAGE, icon_target)
 
     ET.register_namespace("", NAMESPACE_RELS)
-    slide_rels_path.write_bytes(
+    rels_path.write_bytes(
         ET.tostring(rels_root, encoding="UTF-8", xml_declaration=True)
     )
 
-    slide_root = ET.fromstring(slide_path.read_bytes())
+    slide_root = ET.fromstring(slide_file_path.read_bytes())
     spid = _get_max_shape_id(slide_root) + 1
 
     sp_tree = _get_or_create_pic_parent(slide_root)
@@ -617,6 +616,6 @@ def add_audio_to_slide(
     audio_node = _create_audio_node(spid, audio_ctn_id)
     audio_parent.insert(0, audio_node)
 
-    slide_path.write_bytes(
+    slide_file_path.write_bytes(
         ET.tostring(slide_root, encoding="UTF-8", xml_declaration=True)
     )

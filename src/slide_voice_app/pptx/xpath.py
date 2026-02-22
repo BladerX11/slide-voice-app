@@ -7,7 +7,7 @@ XPATH_RELATIONSHIP_BY_TYPE_AND_TARGET = (
 )
 
 XPATH_CT_DEFAULT_BY_EXTENSION = "ct:Default[@Extension='{extension}']"
-XPATH_CT_OVERRIDE_BY_PART_NAME = "ct:Override[@PartName='{part_name}']"
+XPATH_CT_OVERRIDE_BY_PATH_NAME = "ct:Override[@PartName='{path_name}']"
 
 XPATH_NOTES_BODY_SHAPES = ".//p:ph[@type='body']/../../.."
 XPATH_SHAPE_PARAGRAPHS = ".//a:p"

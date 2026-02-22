@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from .namespaces import NAMESPACE_CT, NSMAP_CT
 from .xpath import (
     XPATH_CT_DEFAULT_BY_EXTENSION,
-    XPATH_CT_OVERRIDE_BY_PART_NAME,
+    XPATH_CT_OVERRIDE_BY_PATH_NAME,
 )
 
 
@@ -69,18 +69,18 @@ def ensure_content_type_default(
 
 
 def ensure_content_type_override(
-    root: ET.Element, part_name: str, content_type: str
+    root: ET.Element, path_name: str, content_type: str
 ) -> None:
     """Add an Override entry to [Content_Types].xml if not present.
 
     Args:
         root: Root element of [Content_Types].xml.
-        part_name: Absolute part path (for example: /ppt/slides/slide1.xml).
-        content_type: MIME content type for the part.
+        path_name: Absolute package path (for example: /ppt/slides/slide1.xml).
+        content_type: MIME content type for the path.
     """
     if (
         root.find(
-            XPATH_CT_OVERRIDE_BY_PART_NAME.format(part_name=part_name),
+            XPATH_CT_OVERRIDE_BY_PATH_NAME.format(path_name=path_name),
             namespaces=NSMAP_CT,
         )
     ) is not None:
@@ -89,6 +89,6 @@ def ensure_content_type_override(
     ET.SubElement(
         root,
         f"{{{NAMESPACE_CT}}}Override",
-        PartName=part_name,
+        PartName=path_name,
         ContentType=content_type,
     )

@@ -24,11 +24,11 @@ def _find_relationships_by_type(
 
 
 def read_rels(zip_file: ZipFile, rels_path: str) -> ET.Element:
-    """Read and parse a relationship (.rels) part.
+    """Read and parse a relationship (.rels) file.
 
     Args:
         zip_file: Open ZipFile instance.
-        rels_path: Path to the .rels part.
+        rels_path: Path to the .rels file.
 
     Returns:
         Parsed XML Element of the relationships.
@@ -45,10 +45,10 @@ def read_rels(zip_file: ZipFile, rels_path: str) -> ET.Element:
 
 
 def read_rels_path(rels_path: Path) -> ET.Element:
-    """Read and parse a relationship (.rels) part from disk.
+    """Read and parse a relationship (.rels) file from disk.
 
     Args:
-        rels_path: Path to the .rels part.
+        rels_path: Path to the .rels file.
 
     Returns:
         Parsed XML Element of the relationships.
