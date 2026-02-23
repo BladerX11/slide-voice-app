@@ -8,4 +8,3 @@ Resources
 QML files
 
 - Add custom modules to `scripts/utils.py` for type generation.
-- Use PascalCase component and module names.

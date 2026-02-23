@@ -4,6 +4,8 @@
 slide-voice-app/
 ├── src/slide_voice_app/     # Main application source code
 │   ├── __main__.py          # Application entry point
+│   ├── pptx/                # PowerPoint read/write and media embedding logic
+│   ├── tts/                 # Text-to-speech providers and audio generation logic
 │   ├── ui/                  # QML files for UI
 │   ├── qml_modules/         # QML custom modules outputs (qmldir, qml, qmltypes)
 │   └── rc_resources.py      # Generated resource file (do not edit manually)
