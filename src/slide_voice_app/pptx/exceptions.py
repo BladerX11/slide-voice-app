@@ -47,6 +47,18 @@ class RelationshipIdNotFoundError(PptxError):
         )
 
 
+class RelationshipTargetNotFoundError(PptxError):
+    """Raised when a relationship target path resolves to a missing file."""
+
+    def __init__(self, source: str, target: str) -> None:
+        self.source = source
+        self.target = target
+        super().__init__(
+            "Relationship target "
+            f"'{target}' not found from relationships source '{source}'."
+        )
+
+
 class RelsNotFoundError(PptxError):
     """Raised when a .rels file does not exist in the PPTX archive."""
 

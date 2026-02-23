@@ -337,10 +337,18 @@ class PptxFile:
         self.save_notes()
 
         core_path = self._work_dir / "docProps/core.xml"
+
+        if not core_path.exists():
+            raise InvalidPptxError(str(self._source_path), "Missing docProps/core.xml")
+
         core_path.write_bytes(_update_core_xml_modified(core_path.read_bytes()))
 
         app_path = self._work_dir / "docProps/app.xml"
         notes_count = _count_slides_with_notes(self._work_dir)
+
+        if not app_path.exists():
+            raise InvalidPptxError(str(self._source_path), "Missing docProps/app.xml")
+
         app_path.write_bytes(
             _update_app_xml_notes_count(app_path.read_bytes(), notes_count)
         )
