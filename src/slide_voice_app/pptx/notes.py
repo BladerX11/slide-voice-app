@@ -470,6 +470,7 @@ def _ensure_notes_master(work_dir: Path) -> str:
         ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
     )
     ensure_content_type_override(ct_root, f"/{theme_path}", CONTENT_TYPE_THEME)
+    ET.register_namespace("", NAMESPACE_CT)
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
     return notes_master_path
@@ -560,4 +561,5 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
     ensure_content_type_override(
         ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
     )
+    ET.register_namespace("", NAMESPACE_CT)
     ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
