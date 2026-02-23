@@ -3,7 +3,11 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .exceptions import InvalidPptxError, RelationshipIdNotFoundError
+from .exceptions import (
+    InvalidPptxError,
+    RelationshipIdNotFoundError,
+    RelationshipTargetNotFoundError,
+)
 from .namespaces import (
     NAMESPACE_A,
     NAMESPACE_CT,
@@ -480,8 +484,8 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
         text: Plain notes text where paragraphs are separated by newlines.
 
     Raises:
-        FileNotFoundError: If a relationship target path resolves to a missing
-            notes XML file.
+        RelationshipTargetNotFoundError: If a relationship target path resolves
+            to a missing notes XML file.
         InvalidPptxError: If `ppt/theme/theme1.xml` is missing.
         RelationshipIdNotFoundError: If `notesMasterId/@r:id` has no matching
             relationship entry in presentation relationships.
@@ -503,8 +507,8 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
         notes_path = work_dir / notes_xml_path
 
         if not notes_path.exists():
-            raise FileNotFoundError(
-                f"Notes relationship target does not exist: '{notes_xml_path}'"
+            raise RelationshipTargetNotFoundError(
+                rels_path_for_path(slide_path), notes_xml_path
             )
 
         notes_root = ET.fromstring(notes_path.read_bytes())
