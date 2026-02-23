@@ -32,6 +32,7 @@ from .xpath import (
     XPATH_NOTES_BODY_SHAPES,
     XPATH_NOTES_MASTER_ID_WITH_RID,
     XPATH_PARAGRAPH_TEXT,
+    XPATH_P_CNVPR_WITH_ID,
     XPATH_SHAPE_PARAGRAPHS,
     XPATH_TXBODY_PARAGRAPHS,
 )
@@ -87,6 +88,78 @@ def extract_notes_text(notes_element: ET.Element) -> str:
     return "\n".join(paragraphs)
 
 
+def _next_shape_id(sp_tree: ET.Element) -> str:
+    """Return the next available `p:cNvPr/@id` under a shape tree.
+
+    Args:
+        sp_tree: Parent shape tree element.
+
+    Returns:
+        String ID value greater than any existing `p:cNvPr/@id`.
+    """
+    return str(
+        max(
+            [
+                int(shape_id)
+                for c_nv_pr in sp_tree.findall(XPATH_P_CNVPR_WITH_ID, namespaces=NSMAP)
+                if (shape_id := c_nv_pr.get("id")) and shape_id.isdigit()
+            ]
+            + [0]
+        )
+        + 1
+    )
+
+
+def _create_notes_body_placeholder_shape(
+    sp_tree: ET.Element, shape_id: str
+) -> ET.Element:
+    """Create and return the notes body placeholder shape.
+
+    Args:
+        sp_tree: Parent shape tree element.
+        shape_id: Value for the nested `p:cNvPr/@id` attribute.
+
+    Returns:
+        Created `p:sp` body-placeholder shape element.
+    """
+    body_shape = ET.SubElement(sp_tree, f"{{{NAMESPACE_P}}}sp")
+    nv_sp_pr = ET.SubElement(body_shape, f"{{{NAMESPACE_P}}}nvSpPr")
+    ET.SubElement(
+        nv_sp_pr,
+        f"{{{NAMESPACE_P}}}cNvPr",
+        id=shape_id,
+        name="Notes Placeholder 2",
+    )
+    ET.SubElement(nv_sp_pr, f"{{{NAMESPACE_P}}}cNvSpPr")
+    nv_pr = ET.SubElement(nv_sp_pr, f"{{{NAMESPACE_P}}}nvPr")
+    ET.SubElement(nv_pr, f"{{{NAMESPACE_P}}}ph", {"type": "body", "idx": "1"})
+    ET.SubElement(body_shape, f"{{{NAMESPACE_P}}}spPr")
+    ET.SubElement(body_shape, f"{{{NAMESPACE_P}}}txBody")
+
+    return body_shape
+
+
+def _ensure_notes_body_tx_body(notes_root: ET.Element) -> ET.Element:
+    """Ensure and return the notes body placeholder `p:txBody` element.
+
+    Args:
+        notes_root: Parsed notes slide root element.
+
+    Returns:
+        Existing or newly created `p:txBody` element.
+    """
+    c_sld = ensure_child(notes_root, f"{{{NAMESPACE_P}}}cSld")
+    sp_tree = ensure_child(c_sld, f"{{{NAMESPACE_P}}}spTree")
+    body_shape = notes_root.find(XPATH_NOTES_BODY_SHAPES, namespaces=NSMAP)
+
+    if body_shape is None:
+        body_shape = _create_notes_body_placeholder_shape(
+            sp_tree, shape_id=_next_shape_id(sp_tree)
+        )
+
+    return ensure_child(body_shape, f"{{{NAMESPACE_P}}}txBody")
+
+
 def _set_notes_text(notes_root: ET.Element, text: str) -> None:
     """Replace body placeholder text with plain paragraph content.
 
@@ -94,12 +167,7 @@ def _set_notes_text(notes_root: ET.Element, text: str) -> None:
         notes_root: Parsed notes slide root element.
         text: Plain notes text where paragraphs are separated by newlines.
     """
-    body_shape = notes_root.find(XPATH_NOTES_BODY_SHAPES, namespaces=NSMAP)
-
-    if body_shape is None:
-        return
-
-    tx_body = ensure_child(body_shape, f"{{{NAMESPACE_P}}}txBody")
+    tx_body = _ensure_notes_body_tx_body(notes_root)
 
     for paragraph in tx_body.findall(XPATH_TXBODY_PARAGRAPHS, namespaces=NSMAP):
         tx_body.remove(paragraph)
@@ -112,41 +180,6 @@ def _set_notes_text(notes_root: ET.Element, text: str) -> None:
         if paragraph_text:
             run = ET.SubElement(paragraph, f"{{{NAMESPACE_A}}}r")
             ET.SubElement(run, f"{{{NAMESPACE_A}}}t").text = paragraph_text
-
-
-def _notes_filename_for_slide(slide_path: str) -> str:
-    """Build notes filename for a slide path.
-
-    Args:
-        slide_path: Slide OOXML path.
-
-    Returns:
-        Notes slide filename.
-    """
-    slide_stem = Path(slide_path).stem
-    suffix = slide_stem.replace("slide", "")
-    return f"notesSlide{suffix}.xml"
-
-
-def _create_shape_non_visual(
-    shape_root: ET.Element,
-    shape_id: str,
-    name: str,
-    ph_attrs: dict[str, str],
-) -> None:
-    """Create shared non-visual shape structure with placeholder entry.
-
-    Args:
-        shape_root: Parent `p:sp` element.
-        shape_id: Shape ID.
-        name: Shape display name.
-        ph_attrs: Attributes for the nested `p:ph` placeholder element.
-    """
-    nv_sp_pr = ET.SubElement(shape_root, f"{{{NAMESPACE_P}}}nvSpPr")
-    ET.SubElement(nv_sp_pr, f"{{{NAMESPACE_P}}}cNvPr", id=shape_id, name=name)
-    ET.SubElement(nv_sp_pr, f"{{{NAMESPACE_P}}}cNvSpPr")
-    nv_pr = ET.SubElement(nv_sp_pr, f"{{{NAMESPACE_P}}}nvPr")
-    ET.SubElement(nv_pr, f"{{{NAMESPACE_P}}}ph", ph_attrs)
 
 
 def _create_notes_slide_xml(text: str) -> ET.Element:
@@ -168,20 +201,28 @@ def _create_notes_slide_xml(text: str) -> ET.Element:
     ET.SubElement(nv_grp_sp_pr, f"{{{NAMESPACE_P}}}nvPr")
     ET.SubElement(sp_tree, f"{{{NAMESPACE_P}}}grpSpPr")
 
-    body_shape = ET.SubElement(sp_tree, f"{{{NAMESPACE_P}}}sp")
-    _create_shape_non_visual(
-        body_shape,
-        shape_id="3",
-        name="Notes Placeholder 2",
-        ph_attrs={"type": "body", "idx": "1"},
-    )
-    ET.SubElement(body_shape, f"{{{NAMESPACE_P}}}spPr")
-    tx_body = ET.SubElement(body_shape, f"{{{NAMESPACE_P}}}txBody")
-    ET.SubElement(tx_body, f"{{{NAMESPACE_A}}}bodyPr")
+    _create_notes_body_placeholder_shape(sp_tree, shape_id="3")
+    tx_body = _ensure_notes_body_tx_body(notes_root)
+    body_pr = ET.Element(f"{{{NAMESPACE_A}}}bodyPr")
+    tx_body.insert(0, body_pr)
 
     _set_notes_text(notes_root, text)
 
     return notes_root
+
+
+def _notes_filename_for_slide(slide_path: str) -> str:
+    """Build notes filename for a slide path.
+
+    Args:
+        slide_path: Slide OOXML path.
+
+    Returns:
+        Notes slide filename.
+    """
+    slide_stem = Path(slide_path).stem
+    suffix = slide_stem.replace("slide", "")
+    return f"notesSlide{suffix}.xml"
 
 
 def _default_clr_map() -> dict[str, str]:
