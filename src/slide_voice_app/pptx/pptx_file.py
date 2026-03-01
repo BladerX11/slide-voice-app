@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Self
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from .audio_insert import add_audio_to_slide
+from .audio_model import Audio
+from .audio_read import load_slide_audio
+from .audio_write import delete_slide_audio, upsert_slide_audio
 from .exceptions import (
     InvalidPptxError,
     NotesNotFoundError,
@@ -100,7 +102,12 @@ def _count_slides_with_notes(work_dir: Path) -> int:
 class Slide:
     """Slide model backed by an extracted PPTX workspace."""
 
-    def __init__(self, index: int, slide_path: str, work_dir: Path):
+    def __init__(
+        self,
+        index: int,
+        slide_path: str,
+        work_dir: Path,
+    ):
         """Initialize a Slide.
 
         Args:
@@ -113,6 +120,8 @@ class Slide:
         self._work_dir = work_dir
         self._notes = self._read_notes()
         self.notes_changed = False
+        self.audio: list[Audio] = load_slide_audio(self._work_dir, self.slide_path)
+        self._audio_by_id: dict[str, Audio] = {a.audio_id: a for a in self.audio}
 
     @property
     def notes(self) -> str:
@@ -168,16 +177,34 @@ class Slide:
 
         return extract_notes_text(notes_element)
 
+    def _reload_audio(self) -> None:
+        """Reload slide audio from workspace files."""
+        self.audio = load_slide_audio(self._work_dir, self.slide_path)
+        self._audio_by_id = {item.audio_id: item for item in self.audio}
+
     def add_audio(self, mp3_path: Path) -> None:
-        """Insert audio into this slide.
+        """Upsert audio for this slide immediately.
 
         Args:
             mp3_path: Path to MP3 file.
 
         Raises:
-            FileNotFoundError: If workspace, slide, or MP3 file is missing.
+            FileNotFoundError: If MP3 file is missing.
         """
-        add_audio_to_slide(self._work_dir, self.slide_path, mp3_path)
+        upsert_slide_audio(self._work_dir, self.slide_path, mp3_path)
+        self._reload_audio()
+
+    def delete_audio(self, audio_id: str) -> None:
+        """Delete one slide audio entry immediately.
+
+        Args:
+            audio_id: In-memory audio identifier.
+        """
+        if audio_id not in self._audio_by_id:
+            return
+
+        delete_slide_audio(self._work_dir, self.slide_path, self._audio_by_id[audio_id])
+        self._reload_audio()
 
 
 class PptxFile:
@@ -192,7 +219,7 @@ class PptxFile:
         """
         self._source_path = source_path
         self._temp_dir = temp_dir
-        self._work_dir = Path(temp_dir.name)
+        self._work_dir = Path(temp_dir.name) / "unpacked"
         self.slides: list[Slide] = []
 
     @classmethod
@@ -214,14 +241,13 @@ class PptxFile:
             raise FileNotFoundError(f"File not found: {path}")
 
         temp_dir = tempfile.TemporaryDirectory()
-        work_dir = Path(temp_dir.name)
 
         try:
             with ZipFile(path, "r") as zip_file:
                 if "ppt/presentation.xml" not in zip_file.namelist():
                     raise InvalidPptxError(str(path), "Missing ppt/presentation.xml")
 
-                zip_file.extractall(work_dir)
+                zip_file.extractall(Path(temp_dir.name) / "unpacked")
         except InvalidPptxError:
             temp_dir.cleanup()
             raise
@@ -264,7 +290,11 @@ class PptxFile:
 
         indexed_paths.sort(key=lambda item: item[0])
         self.slides = [
-            Slide(index=index, slide_path=slide_path, work_dir=self._work_dir)
+            Slide(
+                index=index,
+                slide_path=slide_path,
+                work_dir=self._work_dir,
+            )
             for index, (_, slide_path) in enumerate(indexed_paths)
         ]
 
@@ -313,7 +343,7 @@ class PptxFile:
             slide.save_notes()
 
     def save_audio_for_slide(self, slide_index: int, mp3_path: Path) -> None:
-        """Insert audio into a slide.
+        """Apply audio update for a slide immediately.
 
         Args:
             slide_index: Zero-based slide index.
@@ -321,7 +351,7 @@ class PptxFile:
 
         Raises:
             SlideNotFoundError: If slide index is out of range.
-            FileNotFoundError: If workspace, slide, or MP3 file is missing.
+            FileNotFoundError: If MP3 file is missing.
         """
         slide = self._get_slide(slide_index)
         slide.add_audio(mp3_path)
