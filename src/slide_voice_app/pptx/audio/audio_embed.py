@@ -7,18 +7,8 @@ import xml.etree.ElementTree as ET
 from importlib.resources import files
 from pathlib import Path
 
-from .audio_timing import (
-    compute_next_delay,
-    create_audio_node,
-    create_command_node,
-    get_next_shape_id,
-    get_next_timing_id,
-    get_or_create_audio_parent,
-    get_or_create_command_parent,
-    get_or_create_pic_parent,
-)
-from .exceptions import SlideXmlNotFoundError
-from .namespaces import (
+from ..exceptions import SlideXmlNotFoundError
+from ..namespaces import (
     NAMESPACE_A,
     NAMESPACE_A16,
     NAMESPACE_CT,
@@ -30,9 +20,19 @@ from .namespaces import (
     REL_TYPE_IMAGE,
     REL_TYPE_MEDIA,
 )
-from .paths import slide_rels_path
-from .rels import add_relationship, find_relationship_by_type_and_target
-from .xml_helper import ensure_content_type_default
+from ..paths import slide_rels_path
+from ..rels import add_relationship, find_relationship_by_type_and_target
+from ..xml_helper import ensure_content_type_default
+from .audio_timing import (
+    compute_next_delay,
+    create_audio_node,
+    create_command_node,
+    get_next_shape_id,
+    get_next_timing_id,
+    get_or_create_audio_parent,
+    get_or_create_command_parent,
+    get_or_create_pic_parent,
+)
 
 DEFAULT_ICON_X = 5730875
 DEFAULT_ICON_Y = 3063875

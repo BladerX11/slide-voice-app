@@ -2,9 +2,9 @@
 
 import xml.etree.ElementTree as ET
 
-from .namespaces import NAMESPACE_P, NSMAP
-from .xml_helper import ensure_child
-from .xpath import (
+from ..namespaces import NAMESPACE_P, NSMAP
+from ..xml_helper import ensure_child
+from ..xpath import (
     XPATH_P_CNVPR_WITH_ID,
     XPATH_P_CTN_WITH_ID,
     XPATH_P_SPTGT_WITH_SPID,

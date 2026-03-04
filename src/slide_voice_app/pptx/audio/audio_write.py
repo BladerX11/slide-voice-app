@@ -3,13 +3,10 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .audio_embed import add_audio_to_slide
-from .audio_model import Audio
-from .audio_read import load_slide_audio
-from .exceptions import SlideXmlNotFoundError
-from .namespaces import NSMAP, NSMAP_RELS
-from .paths import resolve_target_path, slide_rels_path
-from .xpath import (
+from ..exceptions import SlideXmlNotFoundError
+from ..namespaces import NSMAP, NSMAP_RELS
+from ..paths import resolve_target_path, slide_rels_path
+from ..xpath import (
     XPATH_P_AUDIO,
     XPATH_P_PAR,
     XPATH_P_PIC,
@@ -17,6 +14,9 @@ from .xpath import (
     XPATH_PIC_CNVPR,
     XPATH_RELATIONSHIP_BY_ID,
 )
+from .audio_embed import add_audio_to_slide
+from .audio_model import Audio
+from .audio_read import load_slide_audio
 
 
 def _remove_nodes_with_spid_target(

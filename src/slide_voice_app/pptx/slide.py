@@ -3,9 +3,9 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .audio_model import Audio
-from .audio_read import load_slide_audio
-from .audio_write import delete_slide_audio, upsert_slide_audio
+from .audio.audio_model import Audio
+from .audio.audio_read import load_slide_audio
+from .audio.audio_write import delete_slide_audio, upsert_slide_audio
 from .exceptions import RelationshipTargetNotFoundError
 from .namespaces import REL_TYPE_NOTES_SLIDE
 from .notes import extract_notes_text, write_slide_notes
