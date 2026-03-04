@@ -3,18 +3,18 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .audio_model import Audio
-from .exceptions import SlideXmlNotFoundError
-from .namespaces import NAMESPACE_R, NSMAP
-from .paths import slide_rels_path
-from .rels import get_relationship_id_target_map
-from .xpath import (
+from ..exceptions import SlideXmlNotFoundError
+from ..namespaces import NAMESPACE_R, NSMAP
+from ..paths import slide_rels_path
+from ..rels import get_relationship_id_target_map
+from ..xpath import (
     XPATH_P_PIC,
     XPATH_PIC_AUDIO_FILE,
     XPATH_PIC_BLIP,
     XPATH_PIC_CNVPR,
     XPATH_PIC_MEDIA,
 )
+from .audio_model import Audio
 
 
 def load_slide_audio(work_dir: Path, slide_path: str) -> list[Audio]:

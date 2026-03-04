@@ -27,8 +27,8 @@ from .paths import (
 )
 from .rels import (
     add_relationship,
-    get_relationship_id_target_map,
     find_relationship_target_by_type,
+    get_relationship_id_target_map,
     read_rels_path,
 )
 from .xml_helper import ensure_child, ensure_content_type_override
