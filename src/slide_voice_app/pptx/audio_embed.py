@@ -38,18 +38,12 @@ DEFAULT_ICON_Y = 3063875
 DEFAULT_ICON_CX = 730250
 DEFAULT_ICON_CY = 730250
 
-
-def _get_audio_icon_bytes() -> bytes:
-    """Load the bundled slide-audio icon PNG bytes.
-
-    Returns:
-        PNG image data as bytes.
-    """
-    return (
-        files("slide_voice_app.pptx")
-        .joinpath("resources", "narration-icon.png")
-        .read_bytes()
-    )
+AUDIO_ICON_BYTES = (
+    files("slide_voice_app.pptx")
+    .joinpath("resources", "narration-icon.png")
+    .read_bytes()
+)
+AUDIO_ICON_HASH = hashlib.sha256(AUDIO_ICON_BYTES).hexdigest()
 
 
 def _find_media_files(media_dir: Path, prefix: str, ext: str) -> list[str]:
@@ -240,9 +234,6 @@ def add_audio_to_slide(
     mp3_data = mp3_path.read_bytes()
     mp3_hash = hashlib.sha256(mp3_data).hexdigest()
 
-    icon_data = _get_audio_icon_bytes()
-    icon_hash = hashlib.sha256(icon_data).hexdigest()
-
     ET.register_namespace("", NAMESPACE_CT)
     ET.register_namespace("p", NAMESPACE_P)
     ET.register_namespace("a", NAMESPACE_A)
@@ -261,7 +252,11 @@ def add_audio_to_slide(
     existing_pngs = _find_media_files(media_dir, "image", "png")
 
     mp3_filename = _find_existing_media_by_hash(media_dir, existing_mp3s, mp3_hash)
-    icon_filename = _find_existing_media_by_hash(media_dir, existing_pngs, icon_hash)
+    icon_filename = _find_existing_media_by_hash(
+        media_dir,
+        existing_pngs,
+        AUDIO_ICON_HASH,
+    )
 
     if mp3_filename is None:
         mp3_filename = _next_media_filename(existing_mp3s, "media", "mp3")
@@ -269,7 +264,7 @@ def add_audio_to_slide(
 
     if icon_filename is None:
         icon_filename = _next_media_filename(existing_pngs, "image", "png")
-        (media_dir / icon_filename).write_bytes(icon_data)
+        (media_dir / icon_filename).write_bytes(AUDIO_ICON_BYTES)
 
     ct_path = work_path / "[Content_Types].xml"
     ct_root = ET.fromstring(ct_path.read_bytes())
