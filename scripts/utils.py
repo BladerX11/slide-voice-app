@@ -35,7 +35,7 @@ def compile_resources() -> None:
                 "uv",
                 "run",
                 "pyside6-rcc",
-                str(BASE_DIR / "resources.qrc"),
+                str(PKG_DIR / "resources.qrc"),
                 "-o",
                 str(PKG_DIR / "rc_resources.py"),
             ],

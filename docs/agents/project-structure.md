@@ -7,7 +7,8 @@ slide-voice-app/
 │   ├── tts/                 # Text-to-speech providers and audio generation logic
 │   ├── ui/                  # QML files for UI
 │   ├── qml_modules/         # QML custom modules outputs (qmldir, qml, qmltypes)
-│   └── rc_resources.py      # Generated resource file (do not edit manually)
+│   ├── rc_resources.py      # Generated resource file (do not edit manually)
+│   └── resources.py         # Qt resource collection file 
 ├── src/slide_voice_pptx/    # PPTX library with CLI entry point
 ├── scripts/                 # Build and development scripts
 │   ├── run.py               # Run application in development mode
@@ -16,6 +17,5 @@ slide-voice-app/
 ├── docs/                    # Documentation
 │   ├── dev/                 # Developer documentation
 │   └── user/                # User documentation
-├── resources.qrc            # Qt resource collection file
 └── pyproject.toml           # Project configuration
 ```

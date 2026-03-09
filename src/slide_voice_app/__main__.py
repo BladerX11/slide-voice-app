@@ -1,4 +1,5 @@
 import sys
+import platform
 
 from PySide6.QtCore import QCoreApplication, QSettings
 from PySide6.QtGui import QGuiApplication
@@ -11,11 +12,16 @@ import slide_voice_app.rc_resources  # noqa: F401
 def main():
     QCoreApplication.setOrganizationName("slide-voice-app")
     QCoreApplication.setApplicationName("slide-voice-app")
+    QCoreApplication.addLibraryPath("/usr/lib/qt6/plugins")
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
-
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
-    engine.load(":/ui/Main.qml")
+
+    if platform.system() == "Linux":
+        QCoreApplication.addLibraryPath("/usr/lib/qt6/plugins")
+        engine.addImportPath("/usr/lib/qt6/qml")
+
+    engine.load(":/qt/qml/Main.qml")
 
     if not engine.rootObjects():
         sys.exit(-1)
