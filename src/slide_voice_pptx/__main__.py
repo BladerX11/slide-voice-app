@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
-from .pptx_file import PptxFile
+from slide_voice_pptx import PptxFile
 
 ALLOWED_OPERATIONS = {
     name
