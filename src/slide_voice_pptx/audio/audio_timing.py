@@ -313,10 +313,24 @@ def create_audio_node(
 
 
 def get_next_shape_id(slide_root: ET.Element) -> int:
-    """Get next available shape id from slide content."""
+    """Get next available shape id from slide content.
+
+    Args:
+        slide_root: Root element of the slide XML.
+
+    Returns:
+        Next available shape ID.
+    """
     return _get_max_shape_id(slide_root) + 1
 
 
 def get_next_timing_id(slide_root: ET.Element) -> int:
-    """Get next available timing id from slide timing nodes."""
+    """Get next available timing id from slide timing nodes.
+
+    Args:
+        slide_root: Root element of the slide XML.
+
+    Returns:
+        Next available timing node ID.
+    """
     return _get_max_ctn_id(slide_root) + 1

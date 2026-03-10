@@ -30,7 +30,15 @@ from .audio_read import load_slide_audio
 
 
 def _slide_uses_relationship_id(slide_root: ET.Element, rid: str) -> bool:
-    """Return whether the slide XML still references a relationship ID."""
+    """Return whether the slide XML still references a relationship ID.
+
+    Args:
+        slide_root: Root element of the slide XML.
+        rid: Relationship ID to search for.
+
+    Returns:
+        True when the relationship ID is still referenced in the slide XML.
+    """
     rel_attr = f"{{{NAMESPACE_R}}}link"
     embed_attr = f"{{{NAMESPACE_R}}}embed"
 
@@ -52,7 +60,11 @@ def _slide_uses_relationship_id(slide_root: ET.Element, rid: str) -> bool:
 
 
 def _remove_empty_timing(slide_root: ET.Element) -> None:
-    """Prune empty timing wrappers and remove timing when nothing remains."""
+    """Prune empty timing wrappers and remove timing when nothing remains.
+
+    Args:
+        slide_root: Root element of the slide XML.
+    """
     timing = slide_root.find(XPATH_P_TIMING, namespaces=NSMAP)
 
     if timing is None:
@@ -66,7 +78,12 @@ def _remove_non_interactive_sequences_with_spid_target(
     slide_root: ET.Element,
     spid: int,
 ) -> None:
-    """Remove non-interactive sequence wrappers targeting a specific shape ID."""
+    """Remove non-interactive sequence wrappers targeting a specific shape ID.
+
+    Args:
+        slide_root: Root element of the slide XML.
+        spid: Shape ID to remove from non-interactive sequences.
+    """
     sp_tgt_xpath = XPATH_P_SPTGT_BY_SPID.format(spid=spid)
     par_parent = slide_root.find(XPATH_P_MAINSEQ_CHILD_TNLST, namespaces=NSMAP)
 
@@ -100,7 +117,12 @@ def _remove_interactive_sequences_with_spid_target(
     slide_root: ET.Element,
     spid: int,
 ) -> None:
-    """Remove interactive sequence wrappers targeting a specific shape ID."""
+    """Remove interactive sequence wrappers targeting a specific shape ID.
+
+    Args:
+        slide_root: Root element of the slide XML.
+        spid: Shape ID to remove from interactive sequences.
+    """
     interactive_seq_xpath = XPATH_P_SEQ_INTERACTIVE_CTN_BY_SPID.format(spid=spid)
     seq_parent = slide_root.find(XPATH_P_TMROOT_CHILD_TNLST, namespaces=NSMAP)
 
@@ -120,7 +142,12 @@ def _remove_audio_nodes_with_spid_target(
     slide_root: ET.Element,
     spid: int,
 ) -> None:
-    """Remove audio nodes targeting a specific shape ID."""
+    """Remove audio nodes targeting a specific shape ID.
+
+    Args:
+        slide_root: Root element of the slide XML.
+        spid: Shape ID to remove from audio timing nodes.
+    """
     sp_tgt_xpath = XPATH_P_SPTGT_BY_SPID.format(spid=spid)
     audio_parent = slide_root.find(XPATH_P_TMROOT_CHILD_TNLST, namespaces=NSMAP)
 
@@ -135,7 +162,15 @@ def _remove_audio_nodes_with_spid_target(
 
 
 def _slides_use_target(work_dir: Path, target_path: str) -> bool:
-    """Return whether any slide relationships still resolve to a target path."""
+    """Return whether any slide relationships still resolve to a target path.
+
+    Args:
+        work_dir: Extracted PPTX workspace root.
+        target_path: Package-relative media target path to check.
+
+    Returns:
+        True when at least one slide relationship still resolves to the target path.
+    """
     slides_rels_dir = work_dir / "ppt/slides/_rels"
 
     if not slides_rels_dir.exists():
@@ -162,6 +197,7 @@ def delete_slide_audio(work_dir: Path, slide_path: str, name: str) -> None:
         name: Audio name to remove.
 
     Raises:
+        AudioNotFoundError: If no audio entry matches the requested name.
         SlideXmlNotFoundError: If the slide XML file does not exist.
     """
     audio = next(
