@@ -34,10 +34,10 @@ from .audio_timing import (
     get_or_create_pic_parent,
 )
 
-DEFAULT_ICON_X = -1270000
-DEFAULT_ICON_Y = -1270000
-DEFAULT_ICON_CX = 3063875
-DEFAULT_ICON_CY = 3063875
+DEFAULT_ICON_X = 12479915
+DEFAULT_ICON_Y = -126134
+DEFAULT_ICON_CX = 812800
+DEFAULT_ICON_CY = 812800
 
 AUDIO_ICON_BYTES = (
     files("slide_voice_pptx").joinpath("resources", "narration-icon.png").read_bytes()
