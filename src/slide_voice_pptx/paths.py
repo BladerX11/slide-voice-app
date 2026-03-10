@@ -3,6 +3,8 @@
 import posixpath
 from pathlib import Path
 
+from .exceptions import RelsNotFoundError
+
 
 def resolve_target_path(source_path: str, target: str) -> str:
     """Resolve a relationship target to a normalized package path.
@@ -45,6 +47,23 @@ def rels_path_for_path(path_value: str) -> str:
     parent_dir = posixpath.dirname(path_value)
     file_name = posixpath.basename(path_value)
     return posixpath.join(parent_dir, "_rels", f"{file_name}.rels")
+
+
+def source_path_for_rels_path(rels_path: str) -> str:
+    """Resolve a package part path from a relationships part path."""
+    parent_dir = posixpath.dirname(rels_path)
+    rels_dir = posixpath.basename(parent_dir)
+
+    if rels_dir != "_rels":
+        raise RelsNotFoundError(rels_path)
+
+    source_dir = posixpath.dirname(parent_dir)
+    rels_name = posixpath.basename(rels_path)
+
+    if not rels_name.endswith(".rels"):
+        raise RelsNotFoundError(rels_path)
+
+    return posixpath.join(source_dir, rels_name.removesuffix(".rels"))
 
 
 def slide_rels_path(work_dir: Path, slide_path: str) -> Path:
