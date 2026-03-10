@@ -9,6 +9,7 @@ from PySide6.QtQml import QmlElement, QmlSingleton
 
 from slide_voice_pptx import PptxFile
 from slide_voice_pptx.exceptions import (
+    AudioNotFoundError,
     InvalidPptxError,
     RelsNotFoundError,
     SlideNotFoundError,
@@ -27,6 +28,7 @@ class PPTXManager(QObject):
     slidesLoaded = Signal(list)
     errorOccurred = Signal(str)
     fileLoadedChanged = Signal()
+    audioStateChanged = Signal()
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -44,6 +46,7 @@ class PPTXManager(QObject):
 
         self._pptx_file = None
         self.fileLoadedChanged.emit()
+        self.audioStateChanged.emit()
 
     @Slot(str)
     def openFile(self, file_url: str):
@@ -63,6 +66,7 @@ class PPTXManager(QObject):
             notes = pptx_file.get_all_slide_notes()
             slides_data = [{"notes": note} for note in notes]
             self.slidesLoaded.emit(slides_data)
+            self.audioStateChanged.emit()
 
         except FileNotFoundError:
             self._unload_file()
@@ -94,6 +98,7 @@ class PPTXManager(QObject):
         try:
             mp3_path = Path(url2pathname(urlparse(mp3_file_url).path))
             self._pptx_file.save_audio_for_slide(slide_index, mp3_path)
+            self.audioStateChanged.emit()
         except FileNotFoundError as e:
             self.errorOccurred.emit(f"File not found: {e}")
         except SlideNotFoundError as e:
@@ -102,6 +107,42 @@ class PPTXManager(QObject):
             self.errorOccurred.emit(str(e))
         except Exception as e:
             self.errorOccurred.emit(f"Failed to save audio: {e}")
+
+    @Slot(int, str)
+    def deleteAudioForSlide(self, slide_index: int, name: str):
+        """Delete audio from the selected slide in the loaded PPTX workspace."""
+        if not name:
+            self.errorOccurred.emit("No audio name provided")
+            return
+
+        if self._pptx_file is None:
+            self.errorOccurred.emit("No PPTX file loaded")
+            return
+
+        try:
+            self._pptx_file.delete_audio_for_slide(slide_index, name)
+            self.audioStateChanged.emit()
+        except AudioNotFoundError as e:
+            self.errorOccurred.emit(str(e))
+        except SlideNotFoundError as e:
+            self.errorOccurred.emit(str(e))
+        except SlideXmlNotFoundError as e:
+            self.errorOccurred.emit(str(e))
+        except Exception as e:
+            self.errorOccurred.emit(f"Failed to delete audio: {e}")
+
+    @Slot(int, str, result=bool)
+    def hasAudioForSlide(self, slide_index: int, name: str) -> bool:
+        """Return whether the selected slide has audio with the given name."""
+        if self._pptx_file is None or not name:
+            return False
+
+        try:
+            return self._pptx_file.has_audio_for_slide(slide_index, name)
+        except SlideNotFoundError:
+            return False
+        except Exception:
+            return False
 
     @Slot(int, str)
     def setSlideNotes(self, slide_index: int, notes: str):

@@ -166,6 +166,33 @@ class PptxFile:
         slide = self._get_slide(slide_index)
         slide.add_audio(mp3_path)
 
+    def delete_audio_for_slide(self, slide_index: int, name: str) -> None:
+        """Delete the first matching audio entry for a slide immediately.
+
+        Args:
+            slide_index: Zero-based slide index.
+            name: Audio name to remove.
+
+        Raises:
+            SlideNotFoundError: If slide index is out of range.
+            AudioNotFoundError: If the slide has no matching audio entry.
+        """
+        slide = self._get_slide(slide_index)
+        slide.delete_audio(name)
+
+    def has_audio_for_slide(self, slide_index: int, name: str) -> bool:
+        """Return whether a slide has an audio entry with the given name.
+
+        Args:
+            slide_index: Zero-based slide index.
+            name: Audio name to search for.
+
+        Raises:
+            SlideNotFoundError: If slide index is out of range.
+        """
+        slide = self._get_slide(slide_index)
+        return any(audio.name == name for audio in slide.audio)
+
     def export_to(self, output_path: Path) -> None:
         """Export current workspace into a .pptx file.
 

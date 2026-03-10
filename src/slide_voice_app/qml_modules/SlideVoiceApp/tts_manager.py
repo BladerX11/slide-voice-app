@@ -106,6 +106,11 @@ class TTSManager(QObject):
         """The path to the generated audio output file."""
         return self._get_output_file_path()
 
+    @Property(str, constant=True)
+    def outputFilename(self) -> str:
+        """The stem of the generated audio output file."""
+        return Path(self._get_output_file_path()).stem
+
     @Property(bool, notify=isGeneratingChanged)
     def isGenerating(self) -> bool:
         """Whether audio is currently being generated."""

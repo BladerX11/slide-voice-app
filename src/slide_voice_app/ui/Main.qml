@@ -92,6 +92,10 @@ ApplicationWindow {
             errorDialog.text = message;
             errorDialog.open();
         }
+
+        function onAudioStateChanged() {
+            deleteAudioButton.refreshEnabledState();
+        }
     }
 
     Connections {
@@ -164,6 +168,7 @@ ApplicationWindow {
             onCurrentIndexChanged: {
                 TTSManager.currentSlideHasAudio = false;
                 notesEditor.text = slideModel.get(slideList.currentIndex)?.notes ?? "";
+                deleteAudioButton.refreshEnabledState();
             }
         }
 
@@ -266,6 +271,24 @@ ApplicationWindow {
                     enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded && TTSManager.currentSlideHasAudio
                     onClicked: {
                         PPTXManager.saveAudioForSlide(slideList.currentIndex, TTSManager.outputFile);
+                    }
+                }
+
+                Button {
+                    id: deleteAudioButton
+                    property bool hasEmbeddedAudio: false
+                    text: "Delete Audio"
+                    enabled: !TTSManager.isGenerating && PPTXManager.fileLoaded && hasEmbeddedAudio
+
+                    function refreshEnabledState() {
+                        hasEmbeddedAudio = PPTXManager.hasAudioForSlide(
+                            slideList.currentIndex,
+                            TTSManager.outputFilename
+                        );
+                    }
+
+                    onClicked: {
+                        PPTXManager.deleteAudioForSlide(slideList.currentIndex, TTSManager.outputFilename);
                     }
                 }
             }
