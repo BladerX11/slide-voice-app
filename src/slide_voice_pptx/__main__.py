@@ -21,7 +21,7 @@ class OperationPayload(TypedDict, total=False):
     """Raw JSON operation payload."""
 
     op: str
-    args: list[Any]
+    args: dict[str, Any]
 
 
 class RequestPayload(TypedDict, total=False):
@@ -51,7 +51,7 @@ class Operation:
     """Validated operation request."""
 
     op: str
-    args: list[Any]
+    args: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -145,32 +145,42 @@ def _coerce_arg(method_name: str, parameter: inspect.Parameter, arg: Any) -> Any
     )
 
 
-def _coerce_args(method_name: str, args: list[Any]) -> list[Any]:
+def _coerce_args(method_name: str, args: dict[str, Any]) -> dict[str, Any]:
     """Coerce JSON operation arguments to method parameter types.
 
     Args:
         method_name: Name of the target ``PptxFile`` method.
-        args: Positional arguments from the request payload.
+        args: Named arguments from the request payload.
 
     Returns:
-        List of strictly validated arguments.
+        Dictionary of strictly validated arguments.
 
     Raises:
-        TypeError: If the argument count does not match the method signature
+        TypeError: If the argument names do not match the method signature
             or any argument fails strict type validation.
     """
     method = getattr(PptxFile, method_name)
     parameters = list(inspect.signature(method).parameters.values())[1:]
+    parameter_map = {parameter.name: parameter for parameter in parameters}
 
-    if len(args) != len(parameters):
-        raise TypeError(
-            f"{method_name}() takes {len(parameters)} positional argument(s) but {len(args)} were given"
+    for arg_name in args:
+        if arg_name not in parameter_map:
+            raise TypeError(f"{method_name}() got unexpected argument '{arg_name}'")
+
+    coerced: dict[str, Any] = {}
+
+    for parameter in parameters:
+        if parameter.name not in args:
+            if parameter.default is not inspect._empty:
+                continue
+
+            raise TypeError(
+                f"{method_name}() missing required argument '{parameter.name}'"
+            )
+
+        coerced[parameter.name] = _coerce_arg(
+            method_name, parameter, args[parameter.name]
         )
-
-    coerced: list[Any] = []
-
-    for arg, parameter in zip(args, parameters, strict=True):
-        coerced.append(_coerce_arg(method_name, parameter, arg))
 
     return coerced
 
@@ -228,15 +238,15 @@ def _validate_request(payload: RequestPayload) -> Request:
             raise ValueError(f"Operation at index {index} must be an object")
 
         op_name = op.get("op")
-        args = op.get("args", [])
+        args = op.get("args", {})
 
         if not isinstance(op_name, str) or not op_name:
             raise ValueError(
                 f"Operation at index {index} must have a non-empty 'op' string"
             )
 
-        if not isinstance(args, list):
-            raise ValueError(f"Operation '{op_name}' args must be an array")
+        if not isinstance(args, dict):
+            raise ValueError(f"Operation '{op_name}' args must be an object")
 
         normalized_ops.append(Operation(op=op_name, args=args))
 
@@ -285,7 +295,7 @@ def _execute_request(payload: RequestPayload) -> ResultsPayload:
             try:
                 method = getattr(pptx_file, op_name)
                 args = _coerce_args(op_name, operation.args)
-                result = method(*args)
+                result = method(**args)
             except Exception as exc:
                 should_export = False
                 results.append({"success": False, "result": None, "message": str(exc)})
@@ -341,15 +351,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.results_json is not None:
             args.results_json.write_text(output + "\n", encoding="utf-8")
 
-        print(output)
         return 1
 
     output = json.dumps(results, indent=2)
 
     if args.results_json is not None:
         args.results_json.write_text(output + "\n", encoding="utf-8")
-
-    print(output)
 
     return 0 if all(result["success"] for result in results["results"]) else 1
 

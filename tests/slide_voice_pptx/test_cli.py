@@ -59,9 +59,15 @@ def test_cli_writes_results_and_exports_when_all_ops_succeed(
                 "input": "input.pptx",
                 "output": "output.pptx",
                 "ops": [
-                    {"op": "get_all_slide_notes", "args": []},
-                    {"op": "set_slide_notes", "args": [0, "updated"]},
-                    {"op": "save_audio_for_slide", "args": [0, "audio.mp3"]},
+                    {"op": "get_all_slide_notes", "args": {}},
+                    {
+                        "op": "set_slide_notes",
+                        "args": {"slide_index": 0, "notes": "updated"},
+                    },
+                    {
+                        "op": "save_audio_for_slide",
+                        "args": {"slide_index": 0, "mp3_path": "audio.mp3"},
+                    },
                 ],
             }
         ),
@@ -95,8 +101,11 @@ def test_cli_skips_export_when_any_operation_fails(tmp_path, monkeypatch) -> Non
                 "input": "input.pptx",
                 "output": "output.pptx",
                 "ops": [
-                    {"op": "set_slide_notes", "args": [5, "updated"]},
-                    {"op": "get_all_slide_notes", "args": []},
+                    {
+                        "op": "set_slide_notes",
+                        "args": {"slide_index": 5, "notes": "updated"},
+                    },
+                    {"op": "get_all_slide_notes", "args": {}},
                 ],
             }
         ),
@@ -120,7 +129,7 @@ def test_cli_rejects_unsupported_operation_per_result(tmp_path, monkeypatch) -> 
             {
                 "input": "input.pptx",
                 "output": "",
-                "ops": [{"op": "export_to", "args": ["bad.pptx"]}],
+                "ops": [{"op": "export_to", "args": {"output_path": "bad.pptx"}}],
             }
         ),
         encoding="utf-8",
@@ -176,8 +185,14 @@ def test_cli_rejects_non_strict_argument_types(tmp_path, monkeypatch) -> None:
                 "input": "input.pptx",
                 "output": "output.pptx",
                 "ops": [
-                    {"op": "set_slide_notes", "args": ["0", "updated"]},
-                    {"op": "save_audio_for_slide", "args": [0, 123]},
+                    {
+                        "op": "set_slide_notes",
+                        "args": {"slide_index": "0", "notes": "updated"},
+                    },
+                    {
+                        "op": "save_audio_for_slide",
+                        "args": {"slide_index": 0, "mp3_path": 123},
+                    },
                 ],
             }
         ),
@@ -200,6 +215,83 @@ def test_cli_rejects_non_strict_argument_types(tmp_path, monkeypatch) -> None:
                 "result": None,
                 "message": "save_audio_for_slide() argument 'mp3_path' must be str",
             },
+        ]
+    }
+    assert fake.exported_to is None
+
+
+def test_cli_reports_missing_required_argument(tmp_path, monkeypatch) -> None:
+    fake = FakePptxFile()
+    monkeypatch.setattr("slide_voice_pptx.__main__.PptxFile.open", lambda path: fake)
+
+    request_path = tmp_path / "request.json"
+    results_path = tmp_path / "results.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "input": "input.pptx",
+                "output": "output.pptx",
+                "ops": [
+                    {"op": "set_slide_notes", "args": {"slide_index": 0}},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main([str(request_path), str(results_path)])
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert results == {
+        "results": [
+            {
+                "success": False,
+                "result": None,
+                "message": "set_slide_notes() missing required argument 'notes'",
+            }
+        ]
+    }
+    assert fake.exported_to is None
+
+
+def test_cli_reports_unexpected_argument(tmp_path, monkeypatch) -> None:
+    fake = FakePptxFile()
+    monkeypatch.setattr("slide_voice_pptx.__main__.PptxFile.open", lambda path: fake)
+
+    request_path = tmp_path / "request.json"
+    results_path = tmp_path / "results.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "input": "input.pptx",
+                "output": "output.pptx",
+                "ops": [
+                    {
+                        "op": "set_slide_notes",
+                        "args": {
+                            "slide_index": 0,
+                            "notes": "updated",
+                            "extra": True,
+                        },
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main([str(request_path), str(results_path)])
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 1
+    assert results == {
+        "results": [
+            {
+                "success": False,
+                "result": None,
+                "message": "set_slide_notes() got unexpected argument 'extra'",
+            }
         ]
     }
     assert fake.exported_to is None
