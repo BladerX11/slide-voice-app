@@ -3,6 +3,7 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from .content_types import ensure_content_type_overrides
 from .exceptions import (
     InvalidPptxError,
     RelationshipIdNotFoundError,
@@ -10,7 +11,6 @@ from .exceptions import (
 )
 from .namespaces import (
     NAMESPACE_A,
-    NAMESPACE_CT,
     NAMESPACE_P,
     NAMESPACE_R,
     NAMESPACE_RELS,
@@ -31,7 +31,7 @@ from .rels import (
     get_relationship_id_target_map,
     read_rels_path,
 )
-from .xml_helper import ensure_child, ensure_content_type_override
+from .xml_helper import ensure_child
 from .xpath import (
     XPATH_NOTES_BODY_SHAPES,
     XPATH_NOTES_MASTER_ID_WITH_RID,
@@ -454,14 +454,13 @@ def _ensure_notes_master(work_dir: Path) -> str:
     notes_master_path = resolve_target_path("ppt/presentation.xml", notes_master_target)
     theme_path = _ensure_notes_master_files(work_dir, notes_master_path)
 
-    ct_path = work_dir / "[Content_Types].xml"
-    ct_root = ET.fromstring(ct_path.read_bytes())
-    ensure_content_type_override(
-        ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
+    ensure_content_type_overrides(
+        work_dir,
+        {
+            (f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER),
+            (f"/{theme_path}", CONTENT_TYPE_THEME),
+        },
     )
-    ensure_content_type_override(ct_root, f"/{theme_path}", CONTENT_TYPE_THEME)
-    ET.register_namespace("", NAMESPACE_CT)
-    ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
 
     return notes_master_path
 
@@ -483,7 +482,6 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
         RelsNotFoundError: If a required slide, presentation, or notes-master
             relationship file is missing.
     """
-    ET.register_namespace("", NAMESPACE_CT)
     ET.register_namespace("a", NAMESPACE_A)
     ET.register_namespace("p", NAMESPACE_P)
     ET.register_namespace("r", NAMESPACE_R)
@@ -543,13 +541,10 @@ def write_slide_notes(work_dir: Path, slide_path: str, text: str) -> None:
         ET.tostring(slide_rels, encoding="UTF-8", xml_declaration=True)
     )
 
-    ct_path = work_dir / "[Content_Types].xml"
-    ct_root = ET.fromstring(ct_path.read_bytes())
-    ensure_content_type_override(
-        ct_root, f"/ppt/notesSlides/{notes_filename}", CONTENT_TYPE_NOTES_SLIDE
+    ensure_content_type_overrides(
+        work_dir,
+        {
+            (f"/ppt/notesSlides/{notes_filename}", CONTENT_TYPE_NOTES_SLIDE),
+            (f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER),
+        },
     )
-    ensure_content_type_override(
-        ct_root, f"/{notes_master_path}", CONTENT_TYPE_NOTES_MASTER
-    )
-    ET.register_namespace("", NAMESPACE_CT)
-    ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))

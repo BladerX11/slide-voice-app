@@ -5,8 +5,9 @@ from pathlib import Path
 
 from slide_voice_pptx.rels import get_relationship_id_target_map
 
+from ..content_types import remove_content_type_default_if_unused
 from ..exceptions import AudioNotFoundError, SlideXmlNotFoundError
-from ..namespaces import NAMESPACE_CT, NAMESPACE_R, NSMAP, NSMAP_RELS
+from ..namespaces import NAMESPACE_R, NSMAP, NSMAP_RELS
 from ..paths import resolve_target_path, slide_rels_path, source_path_for_rels_path
 from ..xpath import (
     XPATH_P_AUDIO,
@@ -133,35 +134,6 @@ def _remove_audio_nodes_with_spid_target(
         audio_parent.remove(audio)
 
 
-def _remove_content_type_default_if_unused(
-    work_dir: Path, media_dir: Path, extension: str
-) -> None:
-    """Remove a content-type default when no files use that extension."""
-    if any(media_dir.glob(f"*.{extension}")):
-        return
-
-    content_types_path = work_dir / "[Content_Types].xml"
-
-    if not content_types_path.exists():
-        return
-
-    content_types_root = ET.fromstring(content_types_path.read_bytes())
-    default_tag = f"{{{NAMESPACE_CT}}}Default"
-    removed = False
-
-    for default in list(content_types_root.findall(default_tag)):
-        if default.get("Extension") != extension:
-            continue
-
-        content_types_root.remove(default)
-        removed = True
-
-    if removed:
-        content_types_path.write_bytes(
-            ET.tostring(content_types_root, encoding="UTF-8", xml_declaration=True)
-        )
-
-
 def _slides_use_target(work_dir: Path, target_path: str) -> bool:
     """Return whether any slide relationships still resolve to a target path."""
     slides_rels_dir = work_dir / "ppt/slides/_rels"
@@ -268,5 +240,5 @@ def delete_slide_audio(work_dir: Path, slide_path: str, name: str) -> None:
             absolute_target_path.unlink()
 
     if media_dir.exists():
-        _remove_content_type_default_if_unused(work_dir, media_dir, "mp3")
-        _remove_content_type_default_if_unused(work_dir, media_dir, "png")
+        remove_content_type_default_if_unused(work_dir, media_dir, "mp3")
+        remove_content_type_default_if_unused(work_dir, media_dir, "png")

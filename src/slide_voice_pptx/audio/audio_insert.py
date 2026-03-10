@@ -7,11 +7,11 @@ import xml.etree.ElementTree as ET
 from importlib.resources import files
 from pathlib import Path
 
+from ..content_types import ensure_content_type_defaults
 from ..exceptions import SlideXmlNotFoundError
 from ..namespaces import (
     NAMESPACE_A,
     NAMESPACE_A16,
-    NAMESPACE_CT,
     NAMESPACE_P,
     NAMESPACE_P14,
     NAMESPACE_R,
@@ -22,7 +22,6 @@ from ..namespaces import (
 )
 from ..paths import slide_rels_path
 from ..rels import add_relationship, find_relationship_by_type_and_target
-from ..xml_helper import ensure_content_type_default
 from .audio_timing import (
     compute_next_delay,
     create_audio_node,
@@ -234,7 +233,6 @@ def add_audio_to_slide(
     mp3_data = mp3_path.read_bytes()
     mp3_hash = hashlib.sha256(mp3_data).hexdigest()
 
-    ET.register_namespace("", NAMESPACE_CT)
     ET.register_namespace("p", NAMESPACE_P)
     ET.register_namespace("a", NAMESPACE_A)
     ET.register_namespace("p14", NAMESPACE_P14)
@@ -266,11 +264,10 @@ def add_audio_to_slide(
         icon_filename = _next_media_filename(existing_pngs, "image", "png")
         (media_dir / icon_filename).write_bytes(AUDIO_ICON_BYTES)
 
-    ct_path = work_path / "[Content_Types].xml"
-    ct_root = ET.fromstring(ct_path.read_bytes())
-    ensure_content_type_default(ct_root, "mp3", "audio/mpeg")
-    ensure_content_type_default(ct_root, "png", "image/png")
-    ct_path.write_bytes(ET.tostring(ct_root, encoding="UTF-8", xml_declaration=True))
+    ensure_content_type_defaults(
+        work_path,
+        {("mp3", "audio/mpeg"), ("png", "image/png")},
+    )
 
     rels_path = slide_rels_path(work_path, slide_path)
     rels_path.parent.mkdir(parents=True, exist_ok=True)
