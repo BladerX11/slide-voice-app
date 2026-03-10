@@ -151,11 +151,6 @@ class PptxFile:
         slide = self._get_slide(slide_index)
         slide.set_notes(notes)
 
-    def save_notes(self) -> None:
-        """Persist edited slide notes back into the workspace files."""
-        for slide in self.slides:
-            slide.save_notes()
-
     def save_audio_for_slide(self, slide_index: int, mp3_path: Path) -> None:
         """Apply audio update for a slide immediately.
 
@@ -179,7 +174,8 @@ class PptxFile:
         Args:
             output_path: Destination .pptx path.
         """
-        self.save_notes()
+        for slide in self.slides:
+            slide.save_notes()
 
         core_path = self._work_dir / "docProps/core.xml"
 
